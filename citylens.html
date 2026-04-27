@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AR 城市万花筒 Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+  <!-- AR.js -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+</head>
+
+<body style="margin:0; overflow:hidden;">
+
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+
+  <a-camera gps-camera rotation-reader></a-camera>
+
+</a-scene>
+
+<script>
+const AMAP_KEY = "28c589f6e6d2f024637ed23a480378c9";
+
+// 获取当前位置
+navigator.geolocation.getCurrentPosition(async (pos) => {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+
+  console.log("当前位置:", lat, lng);
+
+  // 调用高德 POI API（餐厅）
+  const url = `https://restapi.amap.com/v3/place/around?key=${AMAP_KEY}&location=${lng},${lat}&keywords=餐厅&radius=1000&offset=20`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  const scene = document.querySelector("a-scene");
+
+  data.pois.forEach(poi => {
+    const [poiLng, poiLat] = poi.location.split(",");
+
+    const entity = document.createElement("a-entity");
+    entity.setAttribute("gps-entity-place", `latitude: ${poiLat}; longitude: ${poiLng}`);
+
+    const text = document.createElement("a-text");
+    text.setAttribute("value", poi.name);
+    text.setAttribute("scale", "8 8 8");
+    text.setAttribute("color", "red");
+    text.setAttribute("align", "center");
+
+    entity.appendChild(text);
+    scene.appendChild(entity);
+  });
+
+}, (err) => {
+  alert("定位失败：" + err.message);
+});
+</script>
+
+</body>
+</html>

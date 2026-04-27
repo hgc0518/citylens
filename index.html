@@ -1,63 +1,216 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
-  <meta charset="utf-8">
-  <title>春哥自用的城市万花筒</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>春哥专用的城市万花筒</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<!-- A-Frame & AR.js -->
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
-  <!-- AR.js -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+<style>
+body { margin:0; overflow:hidden; font-family: "微软雅黑", sans-serif; }
+#panel {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  max-height: 40%;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  overflow-y: auto;
+  font-size: 14px;
+}
+.item {
+  padding: 10px;
+  border-bottom: 1px solid #444;
+  cursor: pointer;
+}
+#top-bar {
+  position: fixed;
+  top:0;
+  width:100%;
+  background: rgba(0,0,0,0.7);
+  display:flex;
+  justify-content:center;
+  padding:5px;
+  z-index:10;
+}
+.button {
+  color:#fff;
+  margin:0 8px;
+  padding:5px 12px;
+  border:1px solid #fff;
+  border-radius:5px;
+  cursor:pointer;
+}
+.button.active {
+  background: #fff;
+  color:#000;
+}
+#card {
+  position: fixed;
+  top:50px;
+  left:50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.95);
+  color:#000;
+  padding:10px;
+  border-radius:8px;
+  display:none;
+  max-width:260px;
+  z-index:11;
+}
+#card img { width:100%; border-radius:5px; }
+</style>
 </head>
+<body>
 
-<body style="margin:0; overflow:hidden;">
+<!-- 顶部中文分类 -->
+<div id="top-bar"></div>
+
+<!-- AR 面板 -->
+<div id="panel"></div>
+
+<!-- 弹出卡片 -->
+<div id="card"></div>
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-
   <a-camera gps-camera rotation-reader></a-camera>
-
 </a-scene>
 
 <script>
-const AMAP_KEY = "28c589f6e6d2f024637ed23a480378c9";
+const AMAP_KEY = "28c589f6e6d2f024637ed23a480378c9"; // 替换为你的高德 Web Key
+const maxPOI = 15;
+let userLat, userLng;
+let heading = 0;
+let allPOIs = [];
+let currentCategory = "餐厅";
+
+// 中文分类列表
+const categories = [
+  { name: "餐厅", keyword: "餐厅" },
+  { name: "咖啡", keyword: "咖啡" },
+  { name: "酒店", keyword: "酒店" },
+  { name: "网吧", keyword: "网吧" },
+  { name: "KTV", keyword: "KTV" },
+];
+
+// 动态生成顶部按钮
+const topBar = document.getElementById("top-bar");
+categories.forEach(cat => {
+  const btn = document.createElement("div");
+  btn.className = "button";
+  btn.innerText = cat.name;
+  btn.dataset.keyword = cat.keyword;
+  if(cat.keyword === currentCategory) btn.classList.add("active");
+  topBar.appendChild(btn);
+
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    currentCategory = cat.keyword;
+    fetchPOIs();
+  });
+});
+
+// 工具函数
+function toRad(d){ return d*Math.PI/180; }
+function getDistance(lat1,lng1,lat2,lng2){
+  const R = 6371000;
+  const dLat = toRad(lat2-lat1);
+  const dLng = toRad(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
+function getBearing(lat1,lng1,lat2,lng2){
+  const y = Math.sin(toRad(lng2-lng1))*Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lng2-lng1);
+  return (Math.atan2(y,x)*180/Math.PI + 360)%360;
+}
 
 // 获取当前位置
-navigator.geolocation.getCurrentPosition(async (pos) => {
-  const lat = pos.coords.latitude;
-  const lng = pos.coords.longitude;
+navigator.geolocation.getCurrentPosition(async (pos)=>{
+  userLat = pos.coords.latitude;
+  userLng = pos.coords.longitude;
+  fetchPOIs();
+}, err=>{ alert("定位失败："+err.message); });
 
-  console.log("当前位置:", lat, lng);
+// 获取手机方向
+window.addEventListener("deviceorientationabsolute", e=>{
+  heading = e.alpha || 0;
+  renderPOIs();
+});
 
-  // 调用高德 POI API（餐厅）
-  const url = `https://restapi.amap.com/v3/place/around?key=${AMAP_KEY}&location=${lng},${lat}&keywords=餐厅&radius=1000&offset=20`;
-
+// 高德 POI 请求
+async function fetchPOIs(){
+  const url = `https://restapi.amap.com/v3/place/around?key=${AMAP_KEY}&location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000&offset=50`;
   const res = await fetch(url);
   const data = await res.json();
+  allPOIs = data.pois
+    .sort((a,b)=>{
+      const [aLng,aLat]=a.location.split(",");
+      const [bLng,bLat]=b.location.split(",");
+      return getDistance(userLat,userLng,aLat,aLng)-getDistance(userLat,userLng,bLat,bLng);
+    })
+    .slice(0,maxPOI);
+  renderPOIs();
+}
 
+// 渲染 POI
+function renderPOIs(){
   const scene = document.querySelector("a-scene");
+  const panel = document.getElementById("panel");
+  const card = document.getElementById("card");
 
-  data.pois.forEach(poi => {
+  // 清空旧标签
+  scene.querySelectorAll('[gps-entity-place]').forEach(el=>el.remove());
+  panel.innerHTML = '';
+
+  allPOIs.forEach(poi=>{
     const [poiLng, poiLat] = poi.location.split(",");
+    const dist = getDistance(userLat,userLng,poiLat,poiLng);
+    const bearing = getBearing(userLat,userLng,poiLat,poiLng);
+    let diff = Math.abs(bearing - heading);
+    if(diff > 180) diff = 360 - diff;
+    if(diff > 60) return;
 
+    // AR标签
     const entity = document.createElement("a-entity");
-    entity.setAttribute("gps-entity-place", `latitude: ${poiLat}; longitude: ${poiLng}`);
-
+    entity.setAttribute("gps-entity-place", `latitude:${poiLat}; longitude:${poiLng}`);
     const text = document.createElement("a-text");
-    text.setAttribute("value", poi.name);
-    text.setAttribute("scale", "8 8 8");
-    text.setAttribute("color", "red");
-    text.setAttribute("align", "center");
-
+    text.setAttribute("value", poi.name + "\n" + dist + "米");
+    const scaleFactor = Math.max(3,30-dist/20);
+    text.setAttribute("scale", `${scaleFactor} ${scaleFactor} ${scaleFactor}`);
+    text.setAttribute("align","center");
+    text.setAttribute("color","red");
     entity.appendChild(text);
-    scene.appendChild(entity);
-  });
 
-}, (err) => {
-  alert("定位失败：" + err.message);
+    // 点击显示卡片
+    entity.addEventListener("click", ()=>{
+      card.innerHTML = `<h3>${poi.name}</h3>
+                        <p>距离: ${dist} 米</p>
+                        <p>评分: 4.5 ★</p>
+                        <img src="https://via.placeholder.com/200x100.png?text=店铺图片">`;
+      card.style.display="block";
+    });
+
+    scene.appendChild(entity);
+
+    // UI面板
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerText = poi.name + " - " + dist + "米";
+    div.onclick = ()=>{ window.open(`https://uri.amap.com/navigation?to=${poiLng},${poiLat},${poi.name}&mode=walk`); };
+    panel.appendChild(div);
+  });
+}
+
+// 点击空白隐藏卡片
+document.body.addEventListener("click", e=>{
+  const card = document.getElementById("card");
+  if(!e.target.closest("a-text")) card.style.display="none";
 });
 </script>
-
 </body>
 </html>

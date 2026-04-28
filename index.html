@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>春哥专用的城市万花筒</title>
+<title>城市万花筒 - AR实景导航</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
@@ -62,7 +62,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 }
 .cat-btn.active { background:#007aff; box-shadow:0 0 12px rgba(0,122,255,0.5); }
 
-/* 搜索区域 - 默认底部，点击居中 */
+/* 搜索区域 */
 #search-area {
   position:fixed;
   left:0; right:0;
@@ -109,14 +109,14 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-weight:bold;
 }
 #suggest-list {
-  background:rgba(0,0,0,0.85);
+  background:rgba(0,0,0,0.92);
   backdrop-filter:blur(20px);
   border-radius:20px;
   margin-top:10px;
-  max-height:200px;
+  max-height:220px;
   overflow-y:auto;
   display:none;
-  border:1px solid rgba(255,255,255,0.15);
+  border:1px solid rgba(255,255,255,0.2);
   pointer-events:auto;
 }
 .suggest-item {
@@ -125,9 +125,12 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:14px;
   border-bottom:1px solid rgba(255,255,255,0.08);
   cursor:pointer;
+  transition:background 0.1s;
 }
+.suggest-item:active { background:rgba(255,255,255,0.15); }
+.suggest-item:last-child { border-bottom:none; }
 
-/* 雷达小地图 */
+/* 雷达 */
 #radar-container {
   position:fixed;
   bottom:95px;
@@ -222,8 +225,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   text-align:center;
   border-left:3px solid #ffaa00;
 }
-
-/* 开始按钮 */
 #startBtn {
   position:fixed;
   top:50%; left:50%;
@@ -311,6 +312,8 @@ let allPOIs = [];
 let activeType = "餐饮服务";
 let isARActive = false;
 let targetPOI = null;
+
+// DOM 元素
 const startBtn = document.getElementById('startBtn');
 const loadingDiv = document.getElementById('loading');
 const debugDiv = document.getElementById('debug');
@@ -324,8 +327,8 @@ const searchBtn = document.getElementById('search-btn');
 const suggestList = document.getElementById('suggest-list');
 const radarMap = document.getElementById('radar-map');
 const searchResultPanel = document.getElementById('search-result-panel');
-searchInput.addEventListener('focus', () => searchArea.classList.add('center-mode'));
-searchInput.addEventListener('blur', () => searchArea.classList.remove('center-mode'));
+
+// 辅助函数
 function rad(d) { return d * Math.PI / 180; }
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -339,22 +342,30 @@ function getBearing(lat1, lon1, lat2, lon2) {
   const x = Math.cos(rad(lat1))*Math.sin(rad(lat2)) - Math.sin(rad(lat1))*Math.cos(rad(lat2))*Math.cos(rad(lon2-lon1));
   return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
 }
+function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+
+// 联想搜索
 let suggestTimer = null;
 async function fetchSuggestions(keyword) {
-  if (!keyword || keyword.length < 2) { suggestList.style.display = 'none'; return; }
+  if (!keyword || keyword.length < 2) {
+    suggestList.style.display = 'none';
+    return;
+  }
   const loc = (currentLat && currentLng) ? `${currentLng},${currentLat}` : '';
   const url = `${WORKER_URL}?type=tips&keywords=${encodeURIComponent(keyword)}&location=${loc}`;
   try {
     const resp = await fetch(url);
     const data = await resp.json();
+    console.log('联想返回:', data);
     suggestList.innerHTML = '';
-    if (data.status === '1' && data.tips?.length) {
+    if (data.status === '1' && data.tips && Array.isArray(data.tips) && data.tips.length > 0) {
       const seen = new Set();
-      const uniq = data.tips.filter(t => { if (seen.has(t.name)) return false; seen.add(t.name); return true; }).slice(0, 8);
+      const uniq = data.tips.filter(t => { if (!t.name || seen.has(t.name)) return false; seen.add(t.name); return true; }).slice(0, 8);
+      if (uniq.length === 0) { suggestList.style.display = 'none'; return; }
       uniq.forEach(tip => {
         const div = document.createElement('div');
         div.className = 'suggest-item';
-        div.innerHTML = `<b>${tip.name}</b><br><span style="font-size:10px;">${tip.address?.slice(0,30) || ''}</span>`;
+        div.innerHTML = `<b>${escapeHtml(tip.name)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(tip.address || '')}</span>`;
         div.onclick = () => {
           searchInput.value = tip.name;
           suggestList.style.display = 'none';
@@ -364,14 +375,18 @@ async function fetchSuggestions(keyword) {
         suggestList.appendChild(div);
       });
       suggestList.style.display = 'block';
-    } else suggestList.style.display = 'none';
-  } catch(e) { suggestList.style.display = 'none'; }
+    } else {
+      suggestList.style.display = 'none';
+    }
+  } catch(e) { console.error('联想失败:', e); suggestList.style.display = 'none'; }
 }
 function onSearchInput() {
   if (suggestTimer) clearTimeout(suggestTimer);
   const kw = searchInput.value.trim();
   suggestTimer = setTimeout(() => fetchSuggestions(kw), 350);
 }
+
+// 搜索
 async function searchByKeyword(keyword) {
   if (!isARActive) { alert('请先启动AR'); return; }
   if (!keyword) keyword = searchInput.value.trim();
@@ -397,6 +412,8 @@ async function searchByKeyword(keyword) {
     }
   } catch(e) { debugDiv.innerText = `❌ 搜索失败`; }
 }
+
+// 获取周边POI
 async function fetchNearbyPOIs() {
   if (!currentLat || !currentLng) return [];
   const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(activeType)}&radius=${SEARCH_RADIUS}&offset=${MAX_POI}`;
@@ -413,6 +430,8 @@ async function fetchNearbyPOIs() {
     }
   } catch(e) { debugDiv.innerText = `❌ 请求失败`; return []; }
 }
+
+// 渲染AR
 function renderARMarkers() {
   const scene = document.getElementById('scene');
   if (!scene) return;
@@ -463,6 +482,8 @@ function renderARMarkers() {
     scene.appendChild(entity);
   });
 }
+
+// 更新雷达
 function updateRadar() {
   if (!currentLat || !currentLng) return;
   radarMap.innerHTML = '<div class="radar-center"></div><div class="radar-north">N</div>';
@@ -486,6 +507,7 @@ function updateRadar() {
     radarMap.appendChild(dot);
   });
 }
+
 async function refresh() {
   if (!isARActive) return;
   targetPOI = null;
@@ -501,6 +523,8 @@ async function switchType(type) {
   });
   await refresh();
 }
+
+// 启动AR
 async function startAR() {
   loadingDiv.classList.remove('hide');
   if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
@@ -536,12 +560,16 @@ async function startAR() {
     { enableHighAccuracy: true }
   );
 }
+
+// 事件绑定
 function bindEvents() {
   startBtn.onclick = startAR;
   menuToggle.onclick = () => sideMenu.classList.toggle('open');
   searchBtn.onclick = () => searchByKeyword(null);
   searchInput.addEventListener('input', onSearchInput);
   searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchByKeyword(null); });
+  searchInput.addEventListener('focus', () => searchArea.classList.add('center-mode'));
+  searchInput.addEventListener('blur', () => searchArea.classList.remove('center-mode'));
   document.querySelectorAll('.cat-btn').forEach(btn => {
     btn.onclick = () => {
       const type = btn.getAttribute('data-type');

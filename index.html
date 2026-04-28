@@ -25,7 +25,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   flex-direction:column;
   gap:10px;
   border-right:1px solid rgba(255,255,255,0.2);
-  box-shadow:2px 0 20px rgba(0,0,0,0.3);
 }
 #side-menu.open { transform:translateX(0); }
 #menu-toggle {
@@ -44,9 +43,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   cursor:pointer;
   z-index:200;
   border:1px solid rgba(255,255,255,0.3);
-  transition:0.1s;
 }
-#menu-toggle:active { transform:scale(0.95); background:rgba(0,0,0,0.9); }
+#menu-toggle:active { transform:scale(0.95); }
 .cat-btn {
   background:rgba(255,255,255,0.12);
   border:none;
@@ -57,14 +55,9 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:13px;
   cursor:pointer;
   text-align:center;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  transition:0.1s;
 }
 .cat-btn:active { transform:scale(0.96); background:rgba(255,255,255,0.25); }
-.cat-btn.active { background:#007aff; box-shadow:0 0 12px rgba(0,122,255,0.5); }
+.cat-btn.active { background:#007aff; }
 
 /* 搜索区域 */
 #search-area {
@@ -89,7 +82,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   padding:6px;
   border:1px solid rgba(255,255,255,0.25);
   pointer-events:auto;
-  box-shadow:0 4px 20px rgba(0,0,0,0.3);
 }
 #search-input {
   flex:1;
@@ -111,9 +103,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:15px;
   cursor:pointer;
   font-weight:bold;
-  transition:0.1s;
 }
-#search-btn:active { transform:scale(0.96); opacity:0.9; }
+#search-btn:active { transform:scale(0.96); }
 #suggest-list {
   background:rgba(0,0,0,0.92);
   backdrop-filter:blur(20px);
@@ -131,10 +122,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:14px;
   border-bottom:1px solid rgba(255,255,255,0.08);
   cursor:pointer;
-  transition:0.05s;
 }
 .suggest-item:active { background:rgba(255,255,255,0.2); }
-.suggest-item:last-child { border-bottom:none; }
 
 /* 雷达 */
 #radar-container {
@@ -151,17 +140,14 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   background:rgba(0,0,0,0.7);
   padding:3px 10px;
   border-radius:20px;
-  font-weight:bold;
 }
 #radar-map {
   width:110px;
   height:110px;
   background:rgba(0,0,0,0.85);
-  backdrop-filter:blur(4px);
   border-radius:50%;
   border:2px solid #00ff88;
   position:relative;
-  box-shadow:0 0 15px rgba(0,255,136,0.4);
 }
 .radar-dot {
   position:absolute;
@@ -170,7 +156,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   border-radius:50%;
   box-shadow:0 0 5px #ff0000;
 }
-.radar-dot-target { background:#ffff00; box-shadow:0 0 8px #ffff00; }
+.radar-dot-target { background:#ffff00; }
 .radar-center {
   position:absolute;
   width:10px; height:10px;
@@ -185,7 +171,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   left:50px;
   color:#00ff88;
   font-size:11px;
-  font-weight:bold;
 }
 
 /* 调试信息 */
@@ -228,11 +213,10 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:11px;
   z-index:160;
   display:none;
-  text-align:center;
   border-left:3px solid #ffaa00;
 }
 
-/* 启动按钮 - 优化点击区域 */
+/* 启动按钮 */
 #startBtn {
   position:fixed;
   top:50%;
@@ -249,14 +233,9 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   z-index:300;
   box-shadow:0 0 35px rgba(0,122,255,0.8);
   animation:pulse 1.5s infinite;
-  transition:0.1s;
   min-width:200px;
-  letter-spacing:2px;
 }
-#startBtn:active {
-  transform:translate(-50%,-50%) scale(0.96);
-  opacity:0.9;
-}
+#startBtn:active { transform:translate(-50%,-50%) scale(0.96); opacity:0.9; }
 @keyframes pulse {
   0% { transform:translate(-50%,-50%) scale(1); opacity:1; }
   50% { transform:translate(-50%,-50%) scale(1.03); opacity:0.95; }
@@ -273,7 +252,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   border-radius:40px;
   color:white;
   z-index:250;
-  font-size:14px;
 }
 </style>
 </head>
@@ -283,8 +261,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 <div id="loading" class="hide">⏳ 定位中...</div>
 
 <div id="side-menu">
-  <button class="cat-btn" data-type="餐饮服务">🍔 餐饮</button>
-  <button class="cat-btn" data-type="咖啡厅">☕ 咖啡</button>
+  <button class="cat-btn" data-type="餐饮">🍔 餐饮</button>
+  <button class="cat-btn" data-type="咖啡">☕ 咖啡</button>
   <button class="cat-btn" data-type="酒店">🏨 酒店</button>
   <button class="cat-btn" data-type="购物">🛒 购物</button>
   <button class="cat-btn" data-type="景点">🏛️ 景点</button>
@@ -297,7 +275,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 
 <div id="search-area" class="hide">
   <div id="search-box">
-    <input type="text" id="search-input" placeholder="🔍 搜索任意地点" autocomplete="off">
+    <input type="text" id="search-input" placeholder="🔍 搜索地点" autocomplete="off">
     <button id="search-btn">搜索</button>
   </div>
   <div id="suggest-list"></div>
@@ -320,13 +298,14 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 </a-scene>
 
 <script>
-const WORKER_URL = 'https://gaode.903329354.workers.dev';
-const SEARCH_RADIUS = 800;
-const MAX_POI = 50;
+// ========== 腾讯地图配置 ==========
+const TENCENT_KEY = 'OB4BZ-D4W3U-B7VVO-4PJWW-6TKDJ-WPB77';  // 腾讯地图公开测试Key
+const USE_WORKER = false;  // 直接调用腾讯API，不需要Worker
+
 let currentLat = null, currentLng = null;
 let currentHeading = 0;
 let allPOIs = [];
-let activeType = "餐饮服务";
+let activeType = "餐饮";
 let isARActive = false;
 let targetPOI = null;
 
@@ -359,97 +338,107 @@ function getBearing(lat1, lon1, lat2, lon2) {
   const x = Math.cos(rad(lat1))*Math.sin(rad(lat2)) - Math.sin(rad(lat1))*Math.cos(rad(lat2))*Math.cos(rad(lon2-lon1));
   return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
 }
-function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 
-// ========== 联想搜索（修复版） ==========
+// ========== 腾讯地图联想搜索 ==========
 let suggestTimer = null;
 
-async function fetchSuggestions(keyword) {
-  console.log('fetchSuggestions 被调用, keyword:', keyword);
+async function fetchTencentSuggestions(keyword) {
+  console.log('腾讯联想:', keyword);
   
   if (!keyword || keyword.length < 2) {
     suggestList.style.display = 'none';
     return;
   }
   
-  const loc = (currentLat && currentLng) ? `${currentLng},${currentLat}` : '';
-  const url = `${WORKER_URL}?type=tips&keywords=${encodeURIComponent(keyword)}&location=${loc}`;
-  console.log('联想请求URL:', url);
+  // 腾讯地图输入提示API
+  const url = `https://apis.map.qq.com/ws/place/v1/suggestion?region=${currentLat ? `${currentLat},${currentLng}` : '南通'}&keyword=${encodeURIComponent(keyword)}&key=${TENCENT_KEY}`;
+  console.log('请求URL:', url);
   
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    console.log('联想返回数据:', data);
+    console.log('腾讯返回:', data);
     
     suggestList.innerHTML = '';
     
-    // 检查返回数据
-    if (data.status === '1' && data.tips && data.tips.length > 0) {
-      // 去重显示前8个
-      const seen = new Set();
-      const items = [];
-      for (const tip of data.tips) {
-        if (tip.name && !seen.has(tip.name)) {
-          seen.add(tip.name);
-          items.push(tip);
-          if (items.length >= 8) break;
-        }
-      }
+    if (data.status === 0 && data.data && data.data.length > 0) {
+      const items = data.data.slice(0, 8);
       
-      if (items.length === 0) {
-        suggestList.style.display = 'none';
-        return;
-      }
-      
-      items.forEach(tip => {
+      items.forEach(item => {
         const div = document.createElement('div');
         div.className = 'suggest-item';
-        div.innerHTML = `<b>${escapeHtml(tip.name)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(tip.address || '')}</span>`;
+        div.innerHTML = `<b>${escapeHtml(item.title)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(item.address || '')}</span>`;
         div.onclick = (e) => {
           e.stopPropagation();
-          searchInput.value = tip.name;
+          searchInput.value = item.title;
           suggestList.style.display = 'none';
-          searchByKeyword(tip.name);
+          searchTencentLocation(item.title, item.location);
           searchInput.blur();
         };
         suggestList.appendChild(div);
       });
       suggestList.style.display = 'block';
-      console.log('显示了', items.length, '个联想结果');
+      console.log('显示', items.length, '个联想结果');
     } else {
-      console.log('无联想结果, data.status=', data.status);
+      console.log('无联想结果');
       suggestList.style.display = 'none';
     }
   } catch(e) {
-    console.error('联想请求异常:', e);
+    console.error('腾讯联想失败:', e);
     suggestList.style.display = 'none';
   }
 }
 
 function onSearchInput() {
-  console.log('onSearchInput triggered, value:', searchInput.value);
   if (suggestTimer) clearTimeout(suggestTimer);
   const kw = searchInput.value.trim();
-  suggestTimer = setTimeout(() => fetchSuggestions(kw), 300);
+  suggestTimer = setTimeout(() => fetchTencentSuggestions(kw), 300);
 }
 
-// ========== 搜索功能 ==========
-async function searchByKeyword(keyword) {
-  if (!isARActive) { alert('请先点击「启动AR视角」'); return; }
+// ========== 腾讯地图搜索地点 ==========
+async function searchTencentLocation(keyword, location) {
+  if (!isARActive) { alert('请先启动AR'); return; }
   if (!keyword) keyword = searchInput.value.trim();
   if (!keyword) return;
   
   debugDiv.innerText = `🔍 搜索: ${keyword}...`;
-  const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(keyword)}&radius=2000&offset=20`;
+  
+  let url;
+  if (location && location.lat && location.lng) {
+    // 如果联想提供了坐标，直接使用
+    const poi = {
+      name: keyword,
+      location: `${location.lng},${location.lat}`,
+      address: ''
+    };
+    allPOIs = [poi];
+    targetPOI = poi;
+    renderARMarkers();
+    const dist = getDistance(currentLat, currentLng, location.lat, location.lng);
+    searchResultPanel.style.display = 'block';
+    searchResultPanel.innerHTML = `🎯 ${keyword}<br>📏 ${dist}米`;
+    debugDiv.innerText = `✅ 找到目标`;
+    statusDiv.innerText = `🎯 ${keyword.slice(0,15)} ${dist}m`;
+    return;
+  }
+  
+  // 否则通过关键词搜索
+  url = `https://apis.map.qq.com/ws/place/v1/search?boundary=nearby(${currentLat},${currentLng},2000)&keyword=${encodeURIComponent(keyword)}&key=${TENCENT_KEY}`;
   
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    if (data.status === '1' && data.pois && data.pois.length > 0) {
-      allPOIs = data.pois.slice(0, MAX_POI);
+    console.log('搜索返回:', data);
+    
+    if (data.status === 0 && data.data && data.data.length > 0) {
+      allPOIs = data.data.slice(0, MAX_POI).map(item => ({
+        name: item.title,
+        location: `${item.location.lng},${item.location.lat}`,
+        address: item.address
+      }));
       targetPOI = allPOIs[0];
       renderARMarkers();
-      const dist = getDistance(currentLat, currentLng, parseFloat(targetPOI.location.split(',')[1]), parseFloat(targetPOI.location.split(',')[0]));
+      const dist = getDistance(currentLat, currentLng, parseFloat(allPOIs[0].location.split(',')[1]), parseFloat(allPOIs[0].location.split(',')[0]));
       searchResultPanel.style.display = 'block';
       searchResultPanel.innerHTML = `🎯 ${targetPOI.name}<br>📏 ${dist}米`;
       debugDiv.innerText = `✅ ${allPOIs.length} 个结果`;
@@ -465,34 +454,47 @@ async function searchByKeyword(keyword) {
   }
 }
 
-// ========== 获取周边POI ==========
+// ========== 获取周边POI（腾讯地图） ==========
 async function fetchNearbyPOIs() {
   if (!currentLat || !currentLng) return [];
-  const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(activeType)}&radius=${SEARCH_RADIUS}&offset=${MAX_POI}`;
+  
+  const url = `https://apis.map.qq.com/ws/place/v1/search?boundary=nearby(${currentLat},${currentLng},1000)&keyword=${encodeURIComponent(activeType)}&page_size=30&key=${TENCENT_KEY}`;
+  console.log('周边搜索:', url);
+  
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    if (data.status === '1' && data.pois && data.pois.length > 0) {
-      debugDiv.innerText = `✅ ${data.pois.length} 个${activeType}`;
-      statusDiv.innerText = `📍 ${data.pois.length} 个地点`;
-      return data.pois;
+    console.log('周边返回:', data);
+    
+    if (data.status === 0 && data.data && data.data.length > 0) {
+      const pois = data.data.map(item => ({
+        name: item.title,
+        location: `${item.location.lng},${item.location.lat}`,
+        address: item.address,
+        tel: item.tel || ''
+      }));
+      debugDiv.innerText = `✅ ${pois.length} 个${activeType}`;
+      statusDiv.innerText = `📍 ${pois.length} 个地点`;
+      return pois;
     } else {
       debugDiv.innerText = `⚠️ 附近无${activeType}`;
       return [];
     }
   } catch(e) { 
+    console.error('请求失败:', e);
     debugDiv.innerText = `❌ 请求失败`; 
     return []; 
   }
 }
 
-// ========== 渲染AR ==========
+// ========== 渲染AR标记 ==========
 function renderARMarkers() {
   const scene = document.getElementById('scene');
   if (!scene) return;
   document.querySelectorAll('[gps-entity-place]').forEach(m => m.remove());
   if (!allPOIs.length) { updateRadar(); return; }
   updateRadar();
+  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -542,6 +544,7 @@ function renderARMarkers() {
 function updateRadar() {
   if (!currentLat || !currentLng) return;
   radarMap.innerHTML = '<div class="radar-center"></div><div class="radar-north">N</div>';
+  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -563,6 +566,8 @@ function updateRadar() {
   });
 }
 
+function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+
 async function refresh() {
   if (!isARActive) return;
   targetPOI = null;
@@ -580,14 +585,13 @@ async function switchType(type) {
   await refresh();
 }
 
-// ========== 启动AR（优化点击）==========
+// ========== 启动AR ==========
 let isStarting = false;
 
 async function startAR() {
   if (isStarting || isARActive) return;
   isStarting = true;
   
-  console.log('启动AR...');
   loadingDiv.classList.remove('hide');
   
   // iOS方向权限
@@ -595,7 +599,7 @@ async function startAR() {
     try {
       const perm = await DeviceOrientationEvent.requestPermission();
       if (perm !== 'granted') {
-        alert('需要方向权限才能使用AR');
+        alert('需要方向权限');
         loadingDiv.classList.add('hide');
         isStarting = false;
         return;
@@ -638,7 +642,7 @@ async function startAR() {
     { enableHighAccuracy: true, timeout: 10000 }
   );
   
-  // 持续追踪位置
+  // 持续追踪
   navigator.geolocation.watchPosition(
     (pos) => { 
       if (isARActive) { 
@@ -654,40 +658,19 @@ async function startAR() {
 
 // ========== 事件绑定 ==========
 function bindEvents() {
-  // 启动按钮 - 同时绑定 click 和 touchend 确保响应
-  startBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    startAR();
-  });
-  startBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    startAR();
-  });
+  startBtn.addEventListener('click', (e) => { e.preventDefault(); startAR(); });
+  startBtn.addEventListener('touchend', (e) => { e.preventDefault(); startAR(); });
   
-  // 菜单按钮
-  menuToggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    sideMenu.classList.toggle('open');
-  });
-  menuToggle.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    sideMenu.classList.toggle('open');
-  });
+  menuToggle.addEventListener('click', () => sideMenu.classList.toggle('open'));
   
-  // 搜索按钮
-  searchBtn.addEventListener('click', () => searchByKeyword(null));
-  searchBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    searchByKeyword(null);
-  });
+  searchBtn.addEventListener('click', () => searchTencentLocation(null, null));
+  searchBtn.addEventListener('touchend', (e) => { e.preventDefault(); searchTencentLocation(null, null); });
   
-  // 搜索输入
   searchInput.addEventListener('input', onSearchInput);
-  searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchByKeyword(null); });
+  searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchTencentLocation(null, null); });
   searchInput.addEventListener('focus', () => searchArea.classList.add('center-mode'));
   searchInput.addEventListener('blur', () => setTimeout(() => searchArea.classList.remove('center-mode'), 200));
   
-  // 分类按钮
   document.querySelectorAll('.cat-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.getAttribute('data-type');
@@ -696,17 +679,12 @@ function bindEvents() {
     });
   });
   
-  // 点击其他地方关闭联想
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#search-area')) {
-      suggestList.style.display = 'none';
-    }
+    if (!e.target.closest('#search-area')) suggestList.style.display = 'none';
   });
 }
 
 bindEvents();
-
-// 定时更新雷达
 setInterval(() => { if (isARActive) updateRadar(); }, 150);
 </script>
 </body>

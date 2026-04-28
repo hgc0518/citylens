@@ -177,6 +177,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   border-radius:8px;
   z-index:160;
   pointer-events:none;
+  max-width:70%;
 }
 #status {
   position:fixed;
@@ -285,9 +286,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 </a-scene>
 
 <script>
-// ========== Worker 配置 ==========
 const WORKER_URL = 'https://gaode.903329354.workers.dev';
-const SEARCH_RADIUS = 2000;  // 2 公里
+const SEARCH_RADIUS = 2000;
 
 let currentLat = null, currentLng = null;
 let currentHeading = 0;
@@ -327,6 +327,11 @@ function getBearing(lat1, lon1, lat2, lon2) {
   return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
 }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+
+function setDebug(msg) {
+  debugDiv.innerText = msg;
+  console.log(msg);
+}
 
 // ========== 联想搜索 ==========
 let suggestTimer = null;
@@ -369,55 +374,74 @@ function onSearchInput() {
   suggestTimer = setTimeout(() => fetchSuggestions(kw), 350);
 }
 
-// ========== 搜索（使用 Worker） ==========
+// ========== 搜索 ==========
 async function searchByKeyword(keyword) {
   if (!isARActive) { alert('请先启动AR'); return; }
   if (!keyword) keyword = searchInput.value.trim();
   if (!keyword) return;
-  debugDiv.innerText = `🔍 搜索: ${keyword}...`;
+  
+  setDebug(`🔍 搜索: ${keyword}...`);
   const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(keyword)}&radius=${SEARCH_RADIUS}&offset=30`;
+  
   try {
     const resp = await fetch(url);
     const data = await resp.json();
+    setDebug(`返回: ${data.pois ? data.pois.length : 0} 个结果`);
+    
     if (data.status === '1' && data.pois && data.pois.length > 0) {
-      allPOIs = data.pois.slice(0, 30);
+      allPOIs = data.pois;
       targetPOI = allPOIs[0];
       renderARMarkers();
       const dist = getDistance(currentLat, currentLng, parseFloat(targetPOI.location.split(',')[1]), parseFloat(targetPOI.location.split(',')[0]));
       searchResultPanel.style.display = 'block';
-      searchResultPanel.innerHTML = `🎯 ${targetPOI.name}<br>📏 ${dist}米`;
-      debugDiv.innerText = `✅ 找到 ${allPOIs.length} 个结果`;
-      statusDiv.innerText = `🎯 ${targetPOI.name.slice(0,15)} ${dist}m`;
+      searchResultPanel.innerHTML = `🎯 ${targetPOI.name}<br>📏 ${dist}米<br>📍 ${targetPOI.address || ''}`;
+      setDebug(`✅ 找到 ${allPOIs.length} 个结果`);
+      statusDiv.innerText = `🎯 ${targetPOI.name.slice(0,12)} ${dist}m`;
     } else {
-      debugDiv.innerText = `❌ 未找到: ${keyword}`;
+      setDebug(`❌ 未找到: ${keyword}`);
       allPOIs = [];
       renderARMarkers();
     }
-  } catch(e) { debugDiv.innerText = `❌ 搜索失败`; }
+  } catch(e) { 
+    setDebug(`❌ 搜索失败: ${e.message}`); 
+  }
 }
 
-// ========== 获取周边POI（使用 Worker） ==========
+// ========== 获取周边POI ==========
 async function fetchNearbyPOIs() {
   if (!currentLat || !currentLng) return [];
-  const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(activeType)}&radius=${SEARCH_RADIUS}&offset=30`;
+  
+  const keyword = activeType;
+  let url;
+  if (keyword === '餐饮服务') {
+    url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=&types=050000&radius=${SEARCH_RADIUS}&offset=30`;
+  } else {
+    url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(keyword)}&radius=${SEARCH_RADIUS}&offset=30`;
+  }
+  
+  setDebug(`请求周边...`);
+  
   try {
     const resp = await fetch(url);
     const data = await resp.json();
+    setDebug(`周边返回: ${data.pois ? data.pois.length : 0} 个结果`);
+    
     if (data.status === '1' && data.pois && data.pois.length > 0) {
       const pois = data.pois.map(poi => ({
         name: poi.name,
         location: poi.location,
-        address: poi.address
+        address: poi.address,
+        tel: poi.tel || ''
       }));
-      debugDiv.innerText = `✅ ${pois.length} 个${activeType === '餐饮服务' ? '餐饮' : activeType}`;
+      setDebug(`✅ ${pois.length} 个${keyword === '餐饮服务' ? '餐饮' : keyword}`);
       statusDiv.innerText = `📍 ${pois.length} 个地点`;
       return pois;
     } else {
-      debugDiv.innerText = `⚠️ 附近无数据 (半径${SEARCH_RADIUS/1000}km)`;
+      setDebug(`⚠️ 附近无数据, count=${data.count}`);
       return [];
     }
   } catch(e) {
-    debugDiv.innerText = `❌ 请求失败: ${e.message}`;
+    setDebug(`❌ 请求失败: ${e.message}`);
     return [];
   }
 }
@@ -427,8 +451,14 @@ function renderARMarkers() {
   const scene = document.getElementById('scene');
   if (!scene) return;
   document.querySelectorAll('[gps-entity-place]').forEach(m => m.remove());
-  if (!allPOIs.length) { updateRadar(); return; }
+  if (!allPOIs.length) { 
+    updateRadar(); 
+    setDebug(`无POI显示`);
+    return; 
+  }
   updateRadar();
+  setDebug(`渲染 ${allPOIs.length} 个POI`);
+  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -466,7 +496,7 @@ function renderARMarkers() {
       targetPOI = poi;
       statusDiv.innerText = `🎯 ${poi.name.slice(0,12)} | ${distance}m`;
       searchResultPanel.style.display = 'block';
-      searchResultPanel.innerHTML = `🎯 ${poi.name}<br>📏 ${distance}米<br>🧭 ${Math.round(bearing)}°`;
+      searchResultPanel.innerHTML = `🎯 ${poi.name}<br>📏 ${distance}米<br>🧭 ${Math.round(bearing)}°<br>📍 ${poi.address || ''}`;
       if (navigator.vibrate) navigator.vibrate(30);
       renderARMarkers();
     });
@@ -478,6 +508,7 @@ function renderARMarkers() {
 function updateRadar() {
   if (!currentLat || !currentLng) return;
   radarMap.innerHTML = '<div class="radar-center"></div><div class="radar-north">N</div>';
+  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -521,7 +552,6 @@ async function startAR() {
   if (isStarting || isARActive) return;
   isStarting = true;
   loadingDiv.classList.remove('hide');
-  startBtn.disabled = true;
 
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     try {
@@ -529,14 +559,12 @@ async function startAR() {
       if (perm !== 'granted') {
         alert('需要方向权限');
         loadingDiv.classList.add('hide');
-        startBtn.disabled = false;
         isStarting = false;
         return;
       }
     } catch(e) {
       alert('请允许方向权限');
       loadingDiv.classList.add('hide');
-      startBtn.disabled = false;
       isStarting = false;
       return;
     }
@@ -557,7 +585,7 @@ async function startAR() {
       loadingDiv.classList.add('hide');
       searchArea.classList.remove('hide');
       radarContainer.classList.remove('hide');
-      debugDiv.innerText = `📍 ${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`;
+      setDebug(`📍 ${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`);
       statusDiv.innerText = `📍 定位成功 (半径${SEARCH_RADIUS/1000}km)`;
       await refresh();
       isStarting = false;
@@ -565,7 +593,6 @@ async function startAR() {
     (err) => {
       alert('定位失败: ' + err.message);
       loadingDiv.classList.add('hide');
-      startBtn.disabled = false;
       isStarting = false;
     },
     { enableHighAccuracy: true, timeout: 10000 }

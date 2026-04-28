@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>春哥专用的城市万花筒</title>
+<title>城市万花筒 - AR实景导航</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
@@ -10,7 +10,7 @@
 * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
 body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 
-/* 侧边菜单 - 默认折叠 */
+/* 侧边菜单 */
 #side-menu {
   position:fixed;
   top:0; left:0; bottom:0;
@@ -44,7 +44,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   z-index:200;
   border:1px solid rgba(255,255,255,0.3);
 }
-#menu-toggle:active { transform:scale(0.95); }
 .cat-btn {
   background:rgba(255,255,255,0.12);
   border:none;
@@ -56,7 +55,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   cursor:pointer;
   text-align:center;
 }
-.cat-btn:active { transform:scale(0.96); background:rgba(255,255,255,0.25); }
+.cat-btn:active { transform:scale(0.96); }
 .cat-btn.active { background:#007aff; }
 
 /* 搜索区域 */
@@ -69,10 +68,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   transition:all 0.35s cubic-bezier(0.4,0,0.2,1);
   pointer-events:none;
 }
-#search-area.center-mode {
-  bottom:50%;
-  transform:translateY(50%);
-}
+#search-area.center-mode { bottom:50%; transform:translateY(50%); }
 #search-box {
   display:flex;
   gap:10px;
@@ -104,7 +100,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   cursor:pointer;
   font-weight:bold;
 }
-#search-btn:active { transform:scale(0.96); }
 #suggest-list {
   background:rgba(0,0,0,0.92);
   backdrop-filter:blur(20px);
@@ -154,7 +149,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   width:8px; height:8px;
   background:#ff4444;
   border-radius:50%;
-  box-shadow:0 0 5px #ff0000;
 }
 .radar-dot-target { background:#ffff00; }
 .radar-center {
@@ -163,7 +157,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   background:#00ff88;
   border-radius:50%;
   left:50px; top:50px;
-  box-shadow:0 0 10px #00ff88;
 }
 .radar-north {
   position:absolute;
@@ -173,7 +166,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:11px;
 }
 
-/* 调试信息 */
+/* 调试 */
 #debug {
   position:fixed;
   top:60px;
@@ -215,8 +208,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   display:none;
   border-left:3px solid #ffaa00;
 }
-
-/* 启动按钮 */
 #startBtn {
   position:fixed;
   top:50%;
@@ -233,9 +224,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   z-index:300;
   box-shadow:0 0 35px rgba(0,122,255,0.8);
   animation:pulse 1.5s infinite;
-  min-width:200px;
 }
-#startBtn:active { transform:translate(-50%,-50%) scale(0.96); opacity:0.9; }
+#startBtn:active { transform:translate(-50%,-50%) scale(0.96); }
 @keyframes pulse {
   0% { transform:translate(-50%,-50%) scale(1); opacity:1; }
   50% { transform:translate(-50%,-50%) scale(1.03); opacity:0.95; }
@@ -298,9 +288,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 </a-scene>
 
 <script>
-// ========== 腾讯地图配置 ==========
-const TENCENT_KEY = 'OB4BZ-D4W3U-B7VVO-4PJWW-6TKDJ-WPB77';  // 腾讯地图公开测试Key
-const USE_WORKER = false;  // 直接调用腾讯API，不需要Worker
+// ========== 腾讯地图配置 - 请替换成你自己的Key ==========
+const TENCENT_KEY = JYNBZ-BXQCI-PJRG6-UGZ5D-P6IA7-THFR6;  // ← 在这里填入你自己的腾讯地图Key
 
 let currentLat = null, currentLng = null;
 let currentHeading = 0;
@@ -338,32 +327,27 @@ function getBearing(lat1, lon1, lat2, lon2) {
   const x = Math.cos(rad(lat1))*Math.sin(rad(lat2)) - Math.sin(rad(lat1))*Math.cos(rad(lat2))*Math.cos(rad(lon2-lon1));
   return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
 }
+function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 
 // ========== 腾讯地图联想搜索 ==========
 let suggestTimer = null;
 
 async function fetchTencentSuggestions(keyword) {
-  console.log('腾讯联想:', keyword);
-  
   if (!keyword || keyword.length < 2) {
     suggestList.style.display = 'none';
     return;
   }
   
-  // 腾讯地图输入提示API
   const url = `https://apis.map.qq.com/ws/place/v1/suggestion?region=${currentLat ? `${currentLat},${currentLng}` : '南通'}&keyword=${encodeURIComponent(keyword)}&key=${TENCENT_KEY}`;
-  console.log('请求URL:', url);
   
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    console.log('腾讯返回:', data);
     
     suggestList.innerHTML = '';
     
     if (data.status === 0 && data.data && data.data.length > 0) {
       const items = data.data.slice(0, 8);
-      
       items.forEach(item => {
         const div = document.createElement('div');
         div.className = 'suggest-item';
@@ -378,13 +362,11 @@ async function fetchTencentSuggestions(keyword) {
         suggestList.appendChild(div);
       });
       suggestList.style.display = 'block';
-      console.log('显示', items.length, '个联想结果');
     } else {
-      console.log('无联想结果');
       suggestList.style.display = 'none';
     }
   } catch(e) {
-    console.error('腾讯联想失败:', e);
+    console.error('联想失败:', e);
     suggestList.style.display = 'none';
   }
 }
@@ -395,7 +377,7 @@ function onSearchInput() {
   suggestTimer = setTimeout(() => fetchTencentSuggestions(kw), 300);
 }
 
-// ========== 腾讯地图搜索地点 ==========
+// ========== 腾讯地图搜索 ==========
 async function searchTencentLocation(keyword, location) {
   if (!isARActive) { alert('请先启动AR'); return; }
   if (!keyword) keyword = searchInput.value.trim();
@@ -403,9 +385,7 @@ async function searchTencentLocation(keyword, location) {
   
   debugDiv.innerText = `🔍 搜索: ${keyword}...`;
   
-  let url;
   if (location && location.lat && location.lng) {
-    // 如果联想提供了坐标，直接使用
     const poi = {
       name: keyword,
       location: `${location.lng},${location.lat}`,
@@ -422,16 +402,14 @@ async function searchTencentLocation(keyword, location) {
     return;
   }
   
-  // 否则通过关键词搜索
-  url = `https://apis.map.qq.com/ws/place/v1/search?boundary=nearby(${currentLat},${currentLng},2000)&keyword=${encodeURIComponent(keyword)}&key=${TENCENT_KEY}`;
+  const url = `https://apis.map.qq.com/ws/place/v1/search?boundary=nearby(${currentLat},${currentLng},2000)&keyword=${encodeURIComponent(keyword)}&key=${TENCENT_KEY}`;
   
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    console.log('搜索返回:', data);
     
     if (data.status === 0 && data.data && data.data.length > 0) {
-      allPOIs = data.data.slice(0, MAX_POI).map(item => ({
+      allPOIs = data.data.slice(0, 30).map(item => ({
         name: item.title,
         location: `${item.location.lng},${item.location.lat}`,
         address: item.address
@@ -454,17 +432,15 @@ async function searchTencentLocation(keyword, location) {
   }
 }
 
-// ========== 获取周边POI（腾讯地图） ==========
+// ========== 获取周边POI ==========
 async function fetchNearbyPOIs() {
   if (!currentLat || !currentLng) return [];
   
   const url = `https://apis.map.qq.com/ws/place/v1/search?boundary=nearby(${currentLat},${currentLng},1000)&keyword=${encodeURIComponent(activeType)}&page_size=30&key=${TENCENT_KEY}`;
-  console.log('周边搜索:', url);
   
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    console.log('周边返回:', data);
     
     if (data.status === 0 && data.data && data.data.length > 0) {
       const pois = data.data.map(item => ({
@@ -487,7 +463,7 @@ async function fetchNearbyPOIs() {
   }
 }
 
-// ========== 渲染AR标记 ==========
+// ========== 渲染AR ==========
 function renderARMarkers() {
   const scene = document.getElementById('scene');
   if (!scene) return;
@@ -566,8 +542,6 @@ function updateRadar() {
   });
 }
 
-function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
-
 async function refresh() {
   if (!isARActive) return;
   targetPOI = null;
@@ -594,7 +568,6 @@ async function startAR() {
   
   loadingDiv.classList.remove('hide');
   
-  // iOS方向权限
   if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
     try {
       const perm = await DeviceOrientationEvent.requestPermission();
@@ -612,14 +585,12 @@ async function startAR() {
     }
   }
   
-  // 监听方向
   window.addEventListener('deviceorientationabsolute', (e) => {
     if (!isARActive) return;
     currentHeading = currentHeading * 0.85 + (e.alpha || 0) * 0.15;
     updateRadar();
   });
   
-  // 获取位置
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       currentLat = pos.coords.latitude;
@@ -642,7 +613,6 @@ async function startAR() {
     { enableHighAccuracy: true, timeout: 10000 }
   );
   
-  // 持续追踪
   navigator.geolocation.watchPosition(
     (pos) => { 
       if (isARActive) { 

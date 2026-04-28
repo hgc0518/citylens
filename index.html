@@ -10,14 +10,14 @@
 * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
 body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 
-/* 侧边菜单 - 默认展开 */
+/* 侧边菜单 - 默认折叠 */
 #side-menu {
   position:fixed;
   top:0; left:0; bottom:0;
   width:160px;
   background:rgba(0,0,0,0.85);
   backdrop-filter:blur(20px);
-  transform:translateX(0);
+  transform:translateX(-100%);
   transition:transform 0.3s ease;
   z-index:180;
   padding-top:70px;
@@ -27,11 +27,11 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   border-right:1px solid rgba(255,255,255,0.2);
   box-shadow:2px 0 20px rgba(0,0,0,0.3);
 }
-#side-menu.collapsed { transform:translateX(-100%); }
+#side-menu.open { transform:translateX(0); }
 #menu-toggle {
   position:fixed;
   top:15px;
-  left:170px;
+  left:15px;
   width:44px; height:44px;
   background:rgba(0,0,0,0.7);
   backdrop-filter:blur(10px);
@@ -44,9 +44,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   cursor:pointer;
   z-index:200;
   border:1px solid rgba(255,255,255,0.3);
-  transition:left 0.3s;
 }
-#side-menu.collapsed + #menu-toggle { left:15px; }
 .cat-btn {
   background:rgba(255,255,255,0.12);
   border:none;
@@ -129,10 +127,10 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   cursor:pointer;
 }
 
-/* 雷达小地图 - 上移到搜索框上方 */
+/* 雷达小地图 */
 #radar-container {
   position:fixed;
-  bottom:95px;   /* 原25px，上移至搜索框上方 */
+  bottom:95px;
   right:15px;
   z-index:160;
   text-align:center;
@@ -181,12 +179,12 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-weight:bold;
 }
 
-/* 调试和状态 */
+/* 调试信息 - 右上角 */
 #debug {
   position:fixed;
-  bottom:10px;
-  left:10px;
-  background:rgba(0,0,0,0.6);
+  top:60px;
+  right:15px;
+  background:rgba(0,0,0,0.7);
   backdrop-filter:blur(8px);
   color:#0f0;
   font-size:10px;
@@ -211,7 +209,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 }
 #search-result-panel {
   position:fixed;
-  bottom:160px;   /* 避开雷达 */
+  bottom:160px;
   right:15px;
   background:rgba(0,0,0,0.8);
   backdrop-filter:blur(12px);
@@ -304,7 +302,6 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 </a-scene>
 
 <script>
-// 所有JavaScript保持不变（功能完整）
 const WORKER_URL = 'https://gaode.903329354.workers.dev';
 const SEARCH_RADIUS = 800;
 const MAX_POI = 50;
@@ -541,7 +538,7 @@ async function startAR() {
 }
 function bindEvents() {
   startBtn.onclick = startAR;
-  menuToggle.onclick = () => sideMenu.classList.toggle('collapsed');
+  menuToggle.onclick = () => sideMenu.classList.toggle('open');
   searchBtn.onclick = () => searchByKeyword(null);
   searchInput.addEventListener('input', onSearchInput);
   searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchByKeyword(null); });

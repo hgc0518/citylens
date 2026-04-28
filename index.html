@@ -13,10 +13,10 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 /* 顶部菜单 - 可折叠 */
 #menu-toggle {
   position:fixed;
-  top:10px;
-  left:10px;
-  width:44px;
-  height:44px;
+  top:12px;
+  left:12px;
+  width:40px;
+  height:40px;
   background:rgba(0,0,0,0.7);
   border-radius:50%;
   display:flex;
@@ -25,8 +25,9 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   z-index:20;
   cursor:pointer;
   color:white;
-  font-size:24px;
+  font-size:22px;
   border:1px solid rgba(255,255,255,0.3);
+  backdrop-filter:blur(5px);
 }
 #top-bar {
   position:fixed;
@@ -57,6 +58,11 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   font-size:12px;
   border:none;
   white-space:nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.button:active {
+  transform:scale(0.96);
+  background:rgba(255,255,255,0.3);
 }
 .button.active {
   background:#007aff;
@@ -69,7 +75,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   bottom:20px;
   left:50%;
   transform:translateX(-50%);
-  background:rgba(0,0,0,0.9);
+  background:rgba(0,0,0,0.92);
   backdrop-filter:blur(20px);
   color:#fff;
   padding:16px;
@@ -138,30 +144,55 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   max-width:70%;
 }
 
-/* 开始按钮 */
+/* 开始按钮 - 优化版 */
 #startBtn {
+  position:fixed;
+  bottom:30px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:30;
+  padding:10px 24px;
+  background:#007aff;
+  color:#fff;
+  border:none;
+  border-radius:40px;
+  font-size:14px;
+  font-weight:500;
+  cursor:pointer;
+  box-shadow:0 2px 12px rgba(0,0,0,0.3);
+  transition:0.2s;
+  white-space:nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+#startBtn:active {
+  transform:translateX(-50%) scale(0.96);
+  opacity:0.9;
+}
+.hidden {
+  display:none !important;
+}
+
+/* 加载提示 */
+#loading {
   position:fixed;
   top:50%;
   left:50%;
   transform:translate(-50%,-50%);
-  z-index:30;
-  padding:15px 30px;
-  background:#007aff;
+  background:rgba(0,0,0,0.8);
   color:#fff;
-  border:none;
+  padding:12px 24px;
   border-radius:30px;
-  font-size:18px;
-  cursor:pointer;
-  box-shadow:0 0 20px rgba(0,122,255,0.5);
-}
-.hidden {
-  display:none !important;
+  font-size:14px;
+  z-index:25;
+  display:none;
+  white-space:nowrap;
 }
 </style>
 </head>
 <body>
 
-<button id="startBtn">🎯 点击开启AR导航</button>
+<button id="startBtn">🎯 开启AR导航</button>
+<div id="loading">⏳ 定位中，请稍候...</div>
 <div id="menu-toggle">☰</div>
 <div id="top-bar">
   <button class="button" data-cat="餐饮服务">🍽️ 餐厅</button>
@@ -189,7 +220,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 const WORKER_URL = 'https://gaode.903329354.workers.dev';
 const maxPOI = 25;
 
-// 分类配置：显示名称 → 搜索关键词
+// 分类配置
 const categories = [
   { name: "餐厅", keyword: "餐饮服务", icon: "https://cdn-icons-png.flaticon.com/512/3075/3075977.png" },
   { name: "咖啡", keyword: "咖啡厅", icon: "https://cdn-icons-png.flaticon.com/512/924/924514.png" },
@@ -208,7 +239,7 @@ let allPOIs = [];
 let currentCategory = categories[0];
 let isARStarted = false;
 let locationWatchId = null;
-let isMenuOpen = true;
+let isMenuOpen = false;
 
 // ========== 菜单折叠 ==========
 function toggleMenu() {
@@ -229,11 +260,10 @@ async function switchCategory(cat) {
   }
   currentCategory = cat;
   
-  // 更新按钮样式
-  document.querySelectorAll(".button").forEach(btn => {
-    if (btn.getAttribute("data-cat") === cat.keyword) {
+  document.querySelectorAll(".button").forEach((btn, idx) => {
+    if (idx < categories.length && categories[idx].keyword === cat.keyword) {
       btn.classList.add("active");
-    } else {
+    } else if (idx < categories.length) {
       btn.classList.remove("active");
     }
   });
@@ -246,10 +276,7 @@ async function switchCategory(cat) {
 
 // ========== 获取POI数据 ==========
 async function fetchPOIs() {
-  if (!userLat || !userLng || !isARStarted) {
-    console.log("定位未就绪");
-    return;
-  }
+  if (!userLat || !userLng || !isARStarted) return;
   
   let keyword = currentCategory.keyword;
   const url = `${WORKER_URL}?location=${userLng},${userLat}&keywords=${encodeURIComponent(keyword)}&radius=2000&offset=${maxPOI}`;
@@ -265,20 +292,17 @@ async function fetchPOIs() {
     if (data.status === "1" && data.pois && data.pois.length > 0) {
       allPOIs = data.pois.slice(0, maxPOI);
       updateDebugMsg(`✅ ${allPOIs.length}个${currentCategory.name}`);
-      console.log(`找到 ${allPOIs.length} 个${currentCategory.name}`);
     } else {
-      console.log(`无${currentCategory.name}数据`);
       updateDebugMsg(`⚠️ 附近无${currentCategory.name}`);
       allPOIs = [];
     }
   } catch (e) {
     console.error("请求失败:", e);
-    updateDebugMsg(`请求失败: ${e.message}`);
+    updateDebugMsg(`请求失败`);
     allPOIs = [];
   }
 }
 
-// ========== 辅助函数 ==========
 function toRad(d) { return d * Math.PI / 180; }
 
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -295,7 +319,6 @@ function getBearing(lat1, lon1, lat2, lon2) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
-// ========== 雷达 ==========
 function updateRadar() {
   const radar = document.getElementById("radar");
   if (!radar) return;
@@ -326,11 +349,8 @@ function updateRadar() {
   });
 }
 
-// ========== 渲染AR ==========
 function renderPOIs() {
-  if (!userLat || !allPOIs || allPOIs.length === 0 || !isARStarted) {
-    return;
-  }
+  if (!userLat || !allPOIs || allPOIs.length === 0 || !isARStarted) return;
   
   const scene = document.querySelector("a-scene");
   if (!scene) return;
@@ -395,77 +415,105 @@ function updateDebugMsg(extra = "") {
   if (debugEl) debugEl.innerText = msg;
 }
 
-// ========== 启动AR ==========
+// ========== 启动AR（优化版） ==========
+let isStarting = false;
+
 async function startAR() {
-  console.log("启动AR...");
+  if (isStarting || isARStarted) return;
+  isStarting = true;
   
-  // iOS方向权限
-  if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
-    try {
-      const result = await DeviceOrientationEvent.requestPermission();
-      if (result !== "granted") {
-        alert("需要方向权限");
+  console.log("启动AR...");
+  const loading = document.getElementById("loading");
+  const startBtn = document.getElementById("startBtn");
+  
+  loading.style.display = "block";
+  startBtn.disabled = true;
+  
+  try {
+    // iOS方向权限
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      try {
+        const result = await DeviceOrientationEvent.requestPermission();
+        if (result !== "granted") {
+          alert("需要方向权限");
+          loading.style.display = "none";
+          startBtn.disabled = false;
+          isStarting = false;
+          return;
+        }
+      } catch (e) {
+        alert("请允许方向权限");
+        loading.style.display = "none";
+        startBtn.disabled = false;
+        isStarting = false;
         return;
       }
-    } catch (e) {
-      alert("请允许方向权限");
-      return;
     }
-  }
-  
-  // 监听方向
-  window.addEventListener("deviceorientationabsolute", (e) => {
-    if (!isARStarted) return;
-    let alpha = e.alpha || 0;
-    smoothHeading = smoothHeading * 0.9 + alpha * 0.1;
-    renderPOIs();
-  });
-  
-  // 获取位置
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      userLat = pos.coords.latitude;
-      userLng = pos.coords.longitude;
-      isARStarted = true;
-      
-      // 隐藏开始按钮
-      document.getElementById("startBtn").classList.add("hidden");
-      
-      updateDebugMsg("定位成功，加载中...");
-      await fetchPOIs();
+    
+    // 监听方向
+    window.addEventListener("deviceorientationabsolute", (e) => {
+      if (!isARStarted) return;
+      let alpha = e.alpha || 0;
+      smoothHeading = smoothHeading * 0.9 + alpha * 0.1;
       renderPOIs();
-      
-      // 菜单默认打开
-      isMenuOpen = true;
-      document.getElementById("top-bar").classList.add("open");
-    },
-    (err) => {
-      alert("定位失败: " + err.message);
-      console.error(err);
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
-  
-  // 持续监听位置
-  locationWatchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      if (isARStarted) {
+    });
+    
+    // 获取位置
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
         userLat = pos.coords.latitude;
         userLng = pos.coords.longitude;
+        isARStarted = true;
+        
+        // 隐藏按钮和加载
+        startBtn.classList.add("hidden");
+        loading.style.display = "none";
+        
+        updateDebugMsg("定位成功，加载中...");
+        await fetchPOIs();
         renderPOIs();
-      }
-    },
-    null,
-    { enableHighAccuracy: true }
-  );
+        
+        // 菜单默认打开
+        isMenuOpen = true;
+        document.getElementById("top-bar").classList.add("open");
+        
+        isStarting = false;
+      },
+      (err) => {
+        alert("定位失败: " + err.message);
+        loading.style.display = "none";
+        startBtn.disabled = false;
+        startBtn.classList.remove("hidden");
+        isStarting = false;
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+    
+    // 持续监听位置
+    locationWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (isARStarted) {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          renderPOIs();
+        }
+      },
+      null,
+      { enableHighAccuracy: true }
+    );
+    
+  } catch (e) {
+    console.error("启动失败:", e);
+    loading.style.display = "none";
+    startBtn.disabled = false;
+    isStarting = false;
+  }
 }
 
 // ========== 绑定事件 ==========
 function bindEvents() {
-  // 菜单按钮
   document.getElementById("menu-toggle").onclick = toggleMenu;
   
-  // 分类按钮
   document.querySelectorAll(".button").forEach((btn, idx) => {
     btn.onclick = () => {
       if (idx < categories.length) {
@@ -474,20 +522,20 @@ function bindEvents() {
     };
   });
   
-  // 开始按钮
-  document.getElementById("startBtn").onclick = startAR;
+  const startBtn = document.getElementById("startBtn");
+  startBtn.onclick = startAR;
+  // 移除 touchend 重复绑定，避免多次触发
+  startBtn.ontouchend = (e) => {
+    e.preventDefault();
+    startAR();
+  };
 }
 
 // ========== 初始化 ==========
 bindEvents();
 
-// 初始菜单闭合一点（引导用户点击）
-setTimeout(() => {
-  if (!isARStarted) {
-    document.getElementById("top-bar").classList.remove("open");
-    isMenuOpen = false;
-  }
-}, 100);
+// 初始菜单闭合
+document.getElementById("top-bar").classList.remove("open");
 
 // 每秒更新调试
 setInterval(() => {

@@ -87,7 +87,7 @@ function startAR(){
 async function fetchPOIs(){
   if(!userLat) return;
 
-  const url = `https://gaode-api.903329354.workers.dev/?location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000`
+  const url = `https://gaode.903329354.workers.dev/?location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000`
 
   try{
     const res = await fetch(url)

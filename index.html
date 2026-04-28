@@ -86,19 +86,22 @@ function startAR(){
 // ================= 获取POI =================
 async function fetchPOIs(){
   if(!userLat) return;
-  const url=`https://restapi.amap.com/v3/place/around?key=${AMAP_KEY}&location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000`;
+
+  const url = `https://gaode-api.903329354.workers.dev/?location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000`
 
   try{
-    const res=await fetch(url);
-    const data=await res.json();
-    if(data.status==="1"){
-      allPOIs=data.pois.slice(0,maxPOI);
+    const res = await fetch(url)
+    const data = await res.json()
+    if(data.status === "1"){
+      allPOIs = data.pois.slice(0,15)
     } else {
-      console.log("高德API返回错误:",data.info);
-      allPOIs=[];
+      console.log("高德API返回错误:", data.info)
+      allPOIs = []
     }
-  }catch(e){console.log("请求失败",e); allPOIs=[];}
-}
+  }catch(e){
+    console.log("请求失败",e)
+    allPOIs=[]
+  }
 
 // ================= 雷达 =================
 function updateRadar(){

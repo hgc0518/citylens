@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>城市万花筒 - AR实景导航</title>
+<title>春哥专用的城市万花筒</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
@@ -32,7 +32,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   position:fixed;
   top:15px;
   left:15px;
-  width:44px; height:44px;
+  width:48px; height:48px;
   background:rgba(0,0,0,0.7);
   backdrop-filter:blur(10px);
   border-radius:50%;
@@ -40,11 +40,13 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   align-items:center;
   justify-content:center;
   color:white;
-  font-size:24px;
+  font-size:26px;
   cursor:pointer;
   z-index:200;
   border:1px solid rgba(255,255,255,0.3);
+  transition:0.1s;
 }
+#menu-toggle:active { transform:scale(0.95); background:rgba(0,0,0,0.9); }
 .cat-btn {
   background:rgba(255,255,255,0.12);
   border:none;
@@ -59,7 +61,9 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   align-items:center;
   justify-content:center;
   gap:8px;
+  transition:0.1s;
 }
+.cat-btn:active { transform:scale(0.96); background:rgba(255,255,255,0.25); }
 .cat-btn.active { background:#007aff; box-shadow:0 0 12px rgba(0,122,255,0.5); }
 
 /* 搜索区域 */
@@ -107,7 +111,9 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:15px;
   cursor:pointer;
   font-weight:bold;
+  transition:0.1s;
 }
+#search-btn:active { transform:scale(0.96); opacity:0.9; }
 #suggest-list {
   background:rgba(0,0,0,0.92);
   backdrop-filter:blur(20px);
@@ -125,9 +131,9 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-size:14px;
   border-bottom:1px solid rgba(255,255,255,0.08);
   cursor:pointer;
-  transition:background 0.1s;
+  transition:0.05s;
 }
-.suggest-item:active { background:rgba(255,255,255,0.15); }
+.suggest-item:active { background:rgba(255,255,255,0.2); }
 .suggest-item:last-child { border-bottom:none; }
 
 /* 雷达 */
@@ -182,7 +188,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   font-weight:bold;
 }
 
-/* 调试信息 - 右上角 */
+/* 调试信息 */
 #debug {
   position:fixed;
   top:60px;
@@ -225,13 +231,16 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   text-align:center;
   border-left:3px solid #ffaa00;
 }
+
+/* 启动按钮 - 优化点击区域 */
 #startBtn {
   position:fixed;
-  top:50%; left:50%;
+  top:50%;
+  left:50%;
   transform:translate(-50%,-50%);
   background:#007aff;
   border:none;
-  padding:16px 42px;
+  padding:18px 48px;
   border-radius:60px;
   color:white;
   font-size:20px;
@@ -240,10 +249,17 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   z-index:300;
   box-shadow:0 0 35px rgba(0,122,255,0.8);
   animation:pulse 1.5s infinite;
+  transition:0.1s;
+  min-width:200px;
+  letter-spacing:2px;
+}
+#startBtn:active {
+  transform:translate(-50%,-50%) scale(0.96);
+  opacity:0.9;
 }
 @keyframes pulse {
   0% { transform:translate(-50%,-50%) scale(1); opacity:1; }
-  50% { transform:translate(-50%,-50%) scale(1.05); opacity:0.9; }
+  50% { transform:translate(-50%,-50%) scale(1.03); opacity:0.95; }
   100% { transform:translate(-50%,-50%) scale(1); opacity:1; }
 }
 .hide { display:none !important; }
@@ -257,12 +273,13 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   border-radius:40px;
   color:white;
   z-index:250;
+  font-size:14px;
 }
 </style>
 </head>
 <body>
 
-<button id="startBtn">🎯 启动城市万花筒</button>
+<button id="startBtn">🚀 启动AR视角</button>
 <div id="loading" class="hide">⏳ 定位中...</div>
 
 <div id="side-menu">
@@ -344,29 +361,52 @@ function getBearing(lat1, lon1, lat2, lon2) {
 }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 
-// 联想搜索
+// ========== 联想搜索（修复版） ==========
 let suggestTimer = null;
+
 async function fetchSuggestions(keyword) {
+  console.log('fetchSuggestions 被调用, keyword:', keyword);
+  
   if (!keyword || keyword.length < 2) {
     suggestList.style.display = 'none';
     return;
   }
+  
   const loc = (currentLat && currentLng) ? `${currentLng},${currentLat}` : '';
   const url = `${WORKER_URL}?type=tips&keywords=${encodeURIComponent(keyword)}&location=${loc}`;
+  console.log('联想请求URL:', url);
+  
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    console.log('联想返回:', data);
+    console.log('联想返回数据:', data);
+    
     suggestList.innerHTML = '';
-    if (data.status === '1' && data.tips && Array.isArray(data.tips) && data.tips.length > 0) {
+    
+    // 检查返回数据
+    if (data.status === '1' && data.tips && data.tips.length > 0) {
+      // 去重显示前8个
       const seen = new Set();
-      const uniq = data.tips.filter(t => { if (!t.name || seen.has(t.name)) return false; seen.add(t.name); return true; }).slice(0, 8);
-      if (uniq.length === 0) { suggestList.style.display = 'none'; return; }
-      uniq.forEach(tip => {
+      const items = [];
+      for (const tip of data.tips) {
+        if (tip.name && !seen.has(tip.name)) {
+          seen.add(tip.name);
+          items.push(tip);
+          if (items.length >= 8) break;
+        }
+      }
+      
+      if (items.length === 0) {
+        suggestList.style.display = 'none';
+        return;
+      }
+      
+      items.forEach(tip => {
         const div = document.createElement('div');
         div.className = 'suggest-item';
         div.innerHTML = `<b>${escapeHtml(tip.name)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(tip.address || '')}</span>`;
-        div.onclick = () => {
+        div.onclick = (e) => {
+          e.stopPropagation();
           searchInput.value = tip.name;
           suggestList.style.display = 'none';
           searchByKeyword(tip.name);
@@ -375,28 +415,37 @@ async function fetchSuggestions(keyword) {
         suggestList.appendChild(div);
       });
       suggestList.style.display = 'block';
+      console.log('显示了', items.length, '个联想结果');
     } else {
+      console.log('无联想结果, data.status=', data.status);
       suggestList.style.display = 'none';
     }
-  } catch(e) { console.error('联想失败:', e); suggestList.style.display = 'none'; }
-}
-function onSearchInput() {
-  if (suggestTimer) clearTimeout(suggestTimer);
-  const kw = searchInput.value.trim();
-  suggestTimer = setTimeout(() => fetchSuggestions(kw), 350);
+  } catch(e) {
+    console.error('联想请求异常:', e);
+    suggestList.style.display = 'none';
+  }
 }
 
-// 搜索
+function onSearchInput() {
+  console.log('onSearchInput triggered, value:', searchInput.value);
+  if (suggestTimer) clearTimeout(suggestTimer);
+  const kw = searchInput.value.trim();
+  suggestTimer = setTimeout(() => fetchSuggestions(kw), 300);
+}
+
+// ========== 搜索功能 ==========
 async function searchByKeyword(keyword) {
-  if (!isARActive) { alert('请先启动AR'); return; }
+  if (!isARActive) { alert('请先点击「启动AR视角」'); return; }
   if (!keyword) keyword = searchInput.value.trim();
   if (!keyword) return;
+  
   debugDiv.innerText = `🔍 搜索: ${keyword}...`;
   const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(keyword)}&radius=2000&offset=20`;
+  
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    if (data.status === '1' && data.pois?.length) {
+    if (data.status === '1' && data.pois && data.pois.length > 0) {
       allPOIs = data.pois.slice(0, MAX_POI);
       targetPOI = allPOIs[0];
       renderARMarkers();
@@ -410,17 +459,20 @@ async function searchByKeyword(keyword) {
       allPOIs = [];
       renderARMarkers();
     }
-  } catch(e) { debugDiv.innerText = `❌ 搜索失败`; }
+  } catch(e) { 
+    console.error(e);
+    debugDiv.innerText = `❌ 搜索失败`; 
+  }
 }
 
-// 获取周边POI
+// ========== 获取周边POI ==========
 async function fetchNearbyPOIs() {
   if (!currentLat || !currentLng) return [];
   const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(activeType)}&radius=${SEARCH_RADIUS}&offset=${MAX_POI}`;
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    if (data.status === '1' && data.pois?.length) {
+    if (data.status === '1' && data.pois && data.pois.length > 0) {
       debugDiv.innerText = `✅ ${data.pois.length} 个${activeType}`;
       statusDiv.innerText = `📍 ${data.pois.length} 个地点`;
       return data.pois;
@@ -428,10 +480,13 @@ async function fetchNearbyPOIs() {
       debugDiv.innerText = `⚠️ 附近无${activeType}`;
       return [];
     }
-  } catch(e) { debugDiv.innerText = `❌ 请求失败`; return []; }
+  } catch(e) { 
+    debugDiv.innerText = `❌ 请求失败`; 
+    return []; 
+  }
 }
 
-// 渲染AR
+// ========== 渲染AR ==========
 function renderARMarkers() {
   const scene = document.getElementById('scene');
   if (!scene) return;
@@ -483,7 +538,7 @@ function renderARMarkers() {
   });
 }
 
-// 更新雷达
+// ========== 更新雷达 ==========
 function updateRadar() {
   if (!currentLat || !currentLng) return;
   radarMap.innerHTML = '<div class="radar-center"></div><div class="radar-north">N</div>';
@@ -515,6 +570,7 @@ async function refresh() {
   allPOIs = await fetchNearbyPOIs();
   renderARMarkers();
 }
+
 async function switchType(type) {
   activeType = type;
   document.querySelectorAll('.cat-btn').forEach(btn => {
@@ -524,20 +580,42 @@ async function switchType(type) {
   await refresh();
 }
 
-// 启动AR
+// ========== 启动AR（优化点击）==========
+let isStarting = false;
+
 async function startAR() {
+  if (isStarting || isARActive) return;
+  isStarting = true;
+  
+  console.log('启动AR...');
   loadingDiv.classList.remove('hide');
+  
+  // iOS方向权限
   if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
     try {
       const perm = await DeviceOrientationEvent.requestPermission();
-      if (perm !== 'granted') { alert('需要方向权限'); loadingDiv.classList.add('hide'); return; }
-    } catch(e) { alert('请允许方向权限'); loadingDiv.classList.add('hide'); return; }
+      if (perm !== 'granted') {
+        alert('需要方向权限才能使用AR');
+        loadingDiv.classList.add('hide');
+        isStarting = false;
+        return;
+      }
+    } catch(e) { 
+      alert('请允许方向权限'); 
+      loadingDiv.classList.add('hide');
+      isStarting = false;
+      return; 
+    }
   }
+  
+  // 监听方向
   window.addEventListener('deviceorientationabsolute', (e) => {
     if (!isARActive) return;
     currentHeading = currentHeading * 0.85 + (e.alpha || 0) * 0.15;
     updateRadar();
   });
+  
+  // 获取位置
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       currentLat = pos.coords.latitude;
@@ -550,37 +628,85 @@ async function startAR() {
       debugDiv.innerText = `📍 ${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`;
       statusDiv.innerText = `📍 定位成功`;
       await refresh();
+      isStarting = false;
     },
-    (err) => { alert('定位失败: '+err.message); loadingDiv.classList.add('hide'); },
+    (err) => { 
+      alert('定位失败: ' + err.message); 
+      loadingDiv.classList.add('hide');
+      isStarting = false;
+    },
     { enableHighAccuracy: true, timeout: 10000 }
   );
+  
+  // 持续追踪位置
   navigator.geolocation.watchPosition(
-    (pos) => { if (isARActive) { currentLat = pos.coords.latitude; currentLng = pos.coords.longitude; updateRadar(); } },
+    (pos) => { 
+      if (isARActive) { 
+        currentLat = pos.coords.latitude; 
+        currentLng = pos.coords.longitude; 
+        updateRadar(); 
+      } 
+    },
     null,
     { enableHighAccuracy: true }
   );
 }
 
-// 事件绑定
+// ========== 事件绑定 ==========
 function bindEvents() {
-  startBtn.onclick = startAR;
-  menuToggle.onclick = () => sideMenu.classList.toggle('open');
-  searchBtn.onclick = () => searchByKeyword(null);
+  // 启动按钮 - 同时绑定 click 和 touchend 确保响应
+  startBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    startAR();
+  });
+  startBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    startAR();
+  });
+  
+  // 菜单按钮
+  menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sideMenu.classList.toggle('open');
+  });
+  menuToggle.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    sideMenu.classList.toggle('open');
+  });
+  
+  // 搜索按钮
+  searchBtn.addEventListener('click', () => searchByKeyword(null));
+  searchBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    searchByKeyword(null);
+  });
+  
+  // 搜索输入
   searchInput.addEventListener('input', onSearchInput);
   searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchByKeyword(null); });
   searchInput.addEventListener('focus', () => searchArea.classList.add('center-mode'));
-  searchInput.addEventListener('blur', () => searchArea.classList.remove('center-mode'));
+  searchInput.addEventListener('blur', () => setTimeout(() => searchArea.classList.remove('center-mode'), 200));
+  
+  // 分类按钮
   document.querySelectorAll('.cat-btn').forEach(btn => {
-    btn.onclick = () => {
+    btn.addEventListener('click', () => {
       const type = btn.getAttribute('data-type');
       if (type) switchType(type);
-    };
+      sideMenu.classList.remove('open');
+    });
   });
+  
+  // 点击其他地方关闭联想
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#search-area')) suggestList.style.display = 'none';
+    if (!e.target.closest('#search-area')) {
+      suggestList.style.display = 'none';
+    }
   });
 }
+
 bindEvents();
+
+// 定时更新雷达
 setInterval(() => { if (isARActive) updateRadar(); }, 150);
 </script>
 </body>

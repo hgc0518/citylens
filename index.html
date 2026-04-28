@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>春哥专用的 AR 城市万花筒 Pro MAX+</title>
+<title>春哥专用的城市万花筒</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -11,7 +11,7 @@
 <style>
 body { margin:0; overflow:hidden; font-family:"微软雅黑"; }
 
-/* 顶部分类 */
+/* 顶部按钮 */
 #top-bar {
   position:fixed; top:0; width:100%;
   display:flex; justify-content:center;
@@ -49,24 +49,42 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑"; }
   border-radius:50%;
 }
 
-/* 箭头提示 */
-#hint {
+/* 调试面板 */
+#debug {
   position:fixed;
-  bottom:200px;
-  width:100%;
-  text-align:center;
+  top:0;
+  left:0;
+  background:#000;
+  color:#0f0;
+  font-size:12px;
+  z-index:9999;
+  padding:5px;
+}
+
+/* 按钮 */
+#startBtn {
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  z-index:20;
+  padding:12px 20px;
+  background:#007aff;
   color:#fff;
-  font-size:18px;
+  border:none;
+  border-radius:10px;
 }
 </style>
 </head>
 
 <body>
 
+<button id="startBtn">点击开启AR</button>
+
 <div id="top-bar"></div>
 <div id="card"></div>
 <div id="radar"></div>
-<div id="hint"></div>
+<div id="debug"></div>
 
 <a-scene embedded arjs="sourceType: webcam;">
   <a-camera gps-camera rotation-reader></a-camera>
@@ -75,7 +93,9 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑"; }
 <script>
 // ================= 配置 =================
 const AMAP_KEY = "28c589f6e6d2f024637ed23a480378c9";
+const maxPOI = 15;
 
+// 分类
 const categories=[
   {name:"餐厅",keyword:"餐厅",icon:"https://cdn-icons-png.flaticon.com/512/3075/3075977.png"},
   {name:"咖啡",keyword:"咖啡",icon:"https://cdn-icons-png.flaticon.com/512/924/924514.png"},
@@ -87,7 +107,6 @@ let userLat,userLng;
 let smoothHeading=0;
 let allPOIs=[];
 let currentCategory="餐厅";
-let currentTarget=null;
 
 // ================= 工具 =================
 function toRad(d){return d*Math.PI/180;}
@@ -106,25 +125,54 @@ function getBearing(a,b,c,d){
   return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 
-// ================= 定位 =================
-navigator.geolocation.watchPosition(pos=>{
-  userLat=pos.coords.latitude;
-  userLng=pos.coords.longitude;
-  fetchPOIs();
-});
+// ================= 启动按钮（解决 iPhone 权限问题） =================
+document.getElementById("startBtn").onclick=async ()=>{
+  try{
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      await DeviceOrientationEvent.requestPermission();
+    }
+  }catch(e){}
+  
+  startAR();
+  document.getElementById("startBtn").style.display="none";
+};
 
-// ================= 方向防抖 =================
-window.addEventListener("deviceorientationabsolute",e=>{
-  smoothHeading += 0.1*((e.alpha||0)-smoothHeading);
-  renderPOIs();
-});
+// ================= 启动 =================
+function startAR(){
+
+  // 👉 先获取一次定位（关键修复）
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLat=pos.coords.latitude;
+    userLng=pos.coords.longitude;
+    fetchPOIs();
+  });
+
+  // 👉 持续定位
+  navigator.geolocation.watchPosition(pos=>{
+    userLat=pos.coords.latitude;
+    userLng=pos.coords.longitude;
+  });
+
+  // 👉 方向
+  window.addEventListener("deviceorientationabsolute",e=>{
+    smoothHeading+=0.1*((e.alpha||0)-smoothHeading);
+    renderPOIs();
+  });
+}
 
 // ================= 获取POI =================
 async function fetchPOIs(){
+  if(!userLat) return;
+
   const url=`https://restapi.amap.com/v3/place/around?key=${AMAP_KEY}&location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000`;
-  const res=await fetch(url);
-  const data=await res.json();
-  allPOIs=data.pois.slice(0,10);
+
+  try{
+    const res=await fetch(url);
+    const data=await res.json();
+    allPOIs=data.pois.slice(0,maxPOI);
+  }catch(e){
+    console.log("请求失败",e);
+  }
 }
 
 // ================= 雷达 =================
@@ -151,6 +199,8 @@ function updateRadar(){
 
 // ================= 渲染 =================
 function renderPOIs(){
+  if(!userLat || allPOIs.length===0) return;
+
   const scene=document.querySelector("a-scene");
   scene.querySelectorAll('[gps-entity-place]').forEach(e=>e.remove());
 
@@ -158,20 +208,17 @@ function renderPOIs(){
 
   const icon=categories.find(c=>c.keyword===currentCategory).icon;
 
-  allPOIs.forEach((poi,i)=>{
+  allPOIs.forEach(poi=>{
     const [lng,lat]=poi.location.split(",");
     const dist=getDistance(userLat,userLng,lat,lng);
 
     const entity=document.createElement("a-entity");
     entity.setAttribute("gps-entity-place",`latitude:${lat}; longitude:${lng}`);
 
-    // 图标（带呼吸动画）
     const img=document.createElement("a-image");
     img.setAttribute("src",icon);
     img.setAttribute("scale","2 2 2");
-    img.setAttribute("animation","property: scale; to: 2.3 2.3 2.3; dir: alternate; dur:1000; loop:true");
 
-    // 文字
     const text=document.createElement("a-text");
     text.setAttribute("value",poi.name+"\n"+dist+"米");
     text.setAttribute("align","center");
@@ -180,38 +227,10 @@ function renderPOIs(){
     entity.appendChild(img);
     entity.appendChild(text);
 
-    entity.onclick=()=>{
-      currentTarget={lng,lat,name:poi.name};
-      showCard(poi,dist,lng,lat);
-    };
+    entity.onclick=()=>showCard(poi,dist,lng,lat);
 
     scene.appendChild(entity);
   });
-
-  renderPath();
-}
-
-// ================= AR路径 =================
-function renderPath(){
-  if(!currentTarget) return;
-
-  const scene=document.querySelector("a-scene");
-
-  const steps=5;
-  for(let i=1;i<=steps;i++){
-    const lat=userLat+(currentTarget.lat-userLat)*(i/steps);
-    const lng=userLng+(currentTarget.lng-userLng)*(i/steps);
-
-    const arrow=document.createElement("a-cone");
-    arrow.setAttribute("gps-entity-place",`latitude:${lat}; longitude:${lng}`);
-    arrow.setAttribute("radius-bottom","0.5");
-    arrow.setAttribute("height","1");
-    arrow.setAttribute("color","#00f");
-
-    scene.appendChild(arrow);
-  }
-
-  document.getElementById("hint").innerText="沿箭头方向前进";
 }
 
 // ================= 卡片 =================
@@ -230,6 +249,15 @@ function showCard(poi,dist,lng,lat){
 function goNav(lng,lat,name){
   window.open(`https://uri.amap.com/navigation?to=${lng},${lat},${name}`);
 }
+
+// ================= 调试面板 =================
+setInterval(()=>{
+  document.getElementById("debug").innerText =
+    "定位: " + userLat + "," + userLng + "\n" +
+    "POI数量: " + (allPOIs ? allPOIs.length : "null") + "\n" +
+    "方向: " + smoothHeading;
+},1000);
+
 </script>
 
 </body>

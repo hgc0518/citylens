@@ -2,14 +2,10 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>春哥专用城市万花筒</title>
+<title>春哥专用的城市万花筒</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-<!-- 高德地图 JS API -->
-<script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=28c589f6e6d2f024637ed23a480378c9"></script>
-<!-- 高德地图 UI 组件库（可选） -->
-<script src="https://webapi.amap.com/ui/1.1/main.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
 body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
@@ -289,8 +285,9 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 </a-scene>
 
 <script>
-// 高德地图 JS API 配置
-const AMAP_KEY = '28c589f6e6d2f024637ed23a480378c9';
+// ========== Worker 配置 ==========
+const WORKER_URL = 'https://gaode.903329354.workers.dev';
+const SEARCH_RADIUS = 2000;  // 2 公里
 
 let currentLat = null, currentLng = null;
 let currentHeading = 0;
@@ -299,7 +296,6 @@ let activeType = "餐饮服务";
 let isARActive = false;
 let targetPOI = null;
 let isStarting = false;
-let autoComplete = null;  // 高德输入提示
 
 // DOM 元素
 const startBtn = document.getElementById('startBtn');
@@ -332,119 +328,97 @@ function getBearing(lat1, lon1, lat2, lon2) {
 }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 
-// ========== 高德地图搜索周边POI ==========
-async function searchNearby(keyword) {
-  if (!currentLat || !currentLng) return [];
-  
-  return new Promise((resolve) => {
-    AMap.plugin('AMap.PlaceSearch', () => {
-      const placeSearch = new AMap.PlaceSearch({
-        type: keyword === '餐饮服务' ? '050000' : '',
-        pageSize: 30,
-        city: '南通'
+// ========== 联想搜索 ==========
+let suggestTimer = null;
+async function fetchSuggestions(keyword) {
+  if (!keyword || keyword.length < 2) {
+    suggestList.style.display = 'none';
+    return;
+  }
+  const location = (currentLat && currentLng) ? `${currentLng},${currentLat}` : '';
+  const url = `${WORKER_URL}?type=tips&keywords=${encodeURIComponent(keyword)}&location=${location}`;
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    suggestList.innerHTML = '';
+    if (data.status === '1' && data.tips && data.tips.length > 0) {
+      const items = data.tips.slice(0, 8);
+      items.forEach(tip => {
+        const div = document.createElement('div');
+        div.className = 'suggest-item';
+        div.innerHTML = `<b>${escapeHtml(tip.name)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(tip.address || '')}</span>`;
+        div.onclick = () => {
+          searchInput.value = tip.name;
+          suggestList.style.display = 'none';
+          searchByKeyword(tip.name);
+          searchInput.blur();
+        };
+        suggestList.appendChild(div);
       });
-      
-      placeSearch.searchNearBy(keyword, [currentLng, currentLat], 1500, (status, result) => {
-        console.log('高德搜索返回:', result);
-        if (status === 'complete' && result.poiList && result.poiList.pois) {
-          const pois = result.poiList.pois.map(poi => ({
-            name: poi.name,
-            location: `${poi.location.lng},${poi.location.lat}`,
-            address: poi.address,
-            tel: poi.tel || ''
-          }));
-          debugDiv.innerText = `✅ ${pois.length} 个${keyword}`;
-          statusDiv.innerText = `📍 ${pois.length} 个地点`;
-          resolve(pois);
-        } else {
-          debugDiv.innerText = `⚠️ 附近无${keyword}`;
-          resolve([]);
-        }
-      });
-    });
-  });
+      suggestList.style.display = 'block';
+    } else {
+      suggestList.style.display = 'none';
+    }
+  } catch(e) {
+    suggestList.style.display = 'none';
+  }
+}
+function onSearchInput() {
+  if (suggestTimer) clearTimeout(suggestTimer);
+  const kw = searchInput.value.trim();
+  suggestTimer = setTimeout(() => fetchSuggestions(kw), 350);
 }
 
-// ========== 高德关键字搜索 ==========
+// ========== 搜索（使用 Worker） ==========
 async function searchByKeyword(keyword) {
   if (!isARActive) { alert('请先启动AR'); return; }
   if (!keyword) keyword = searchInput.value.trim();
   if (!keyword) return;
-  
   debugDiv.innerText = `🔍 搜索: ${keyword}...`;
-  
-  return new Promise((resolve) => {
-    AMap.plugin('AMap.PlaceSearch', () => {
-      const placeSearch = new AMap.PlaceSearch({
-        pageSize: 20,
-        city: '南通'
-      });
-      
-      placeSearch.search(keyword, (status, result) => {
-        console.log('搜索返回:', result);
-        if (status === 'complete' && result.poiList && result.poiList.pois) {
-          allPOIs = result.poiList.pois.map(poi => ({
-            name: poi.name,
-            location: `${poi.location.lng},${poi.location.lat}`,
-            address: poi.address,
-            tel: poi.tel || ''
-          }));
-          targetPOI = allPOIs[0];
-          renderARMarkers();
-          const dist = getDistance(currentLat, currentLng, parseFloat(allPOIs[0].location.split(',')[1]), parseFloat(allPOIs[0].location.split(',')[0]));
-          searchResultPanel.style.display = 'block';
-          searchResultPanel.innerHTML = `🎯 ${targetPOI.name}<br>📏 ${dist}米`;
-          debugDiv.innerText = `✅ 找到 ${allPOIs.length} 个结果`;
-          statusDiv.innerText = `🎯 ${targetPOI.name.slice(0,15)} ${dist}m`;
-          resolve(allPOIs);
-        } else {
-          debugDiv.innerText = `❌ 未找到: ${keyword}`;
-          allPOIs = [];
-          renderARMarkers();
-          resolve([]);
-        }
-      });
-    });
-  });
+  const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(keyword)}&radius=${SEARCH_RADIUS}&offset=30`;
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.status === '1' && data.pois && data.pois.length > 0) {
+      allPOIs = data.pois.slice(0, 30);
+      targetPOI = allPOIs[0];
+      renderARMarkers();
+      const dist = getDistance(currentLat, currentLng, parseFloat(targetPOI.location.split(',')[1]), parseFloat(targetPOI.location.split(',')[0]));
+      searchResultPanel.style.display = 'block';
+      searchResultPanel.innerHTML = `🎯 ${targetPOI.name}<br>📏 ${dist}米`;
+      debugDiv.innerText = `✅ 找到 ${allPOIs.length} 个结果`;
+      statusDiv.innerText = `🎯 ${targetPOI.name.slice(0,15)} ${dist}m`;
+    } else {
+      debugDiv.innerText = `❌ 未找到: ${keyword}`;
+      allPOIs = [];
+      renderARMarkers();
+    }
+  } catch(e) { debugDiv.innerText = `❌ 搜索失败`; }
 }
 
-// ========== 初始化高德输入提示 ==========
-function initAutoComplete() {
-  if (typeof AMap !== 'undefined') {
-    AMap.plugin('AMap.Autocomplete', () => {
-      autoComplete = new AMap.Autocomplete({
-        city: '南通'
-      });
-      
-      searchInput.addEventListener('input', (e) => {
-        const keyword = e.target.value;
-        if (keyword.length >= 2) {
-          autoComplete.search(keyword, (status, result) => {
-            suggestList.innerHTML = '';
-            if (status === 'complete' && result.tips && result.tips.length > 0) {
-              const items = result.tips.slice(0, 8);
-              items.forEach(tip => {
-                const div = document.createElement('div');
-                div.className = 'suggest-item';
-                div.innerHTML = `<b>${escapeHtml(tip.name)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(tip.district || '')}</span>`;
-                div.onclick = () => {
-                  searchInput.value = tip.name;
-                  suggestList.style.display = 'none';
-                  searchByKeyword(tip.name);
-                  searchInput.blur();
-                };
-                suggestList.appendChild(div);
-              });
-              suggestList.style.display = 'block';
-            } else {
-              suggestList.style.display = 'none';
-            }
-          });
-        } else {
-          suggestList.style.display = 'none';
-        }
-      });
-    });
+// ========== 获取周边POI（使用 Worker） ==========
+async function fetchNearbyPOIs() {
+  if (!currentLat || !currentLng) return [];
+  const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(activeType)}&radius=${SEARCH_RADIUS}&offset=30`;
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.status === '1' && data.pois && data.pois.length > 0) {
+      const pois = data.pois.map(poi => ({
+        name: poi.name,
+        location: poi.location,
+        address: poi.address
+      }));
+      debugDiv.innerText = `✅ ${pois.length} 个${activeType === '餐饮服务' ? '餐饮' : activeType}`;
+      statusDiv.innerText = `📍 ${pois.length} 个地点`;
+      return pois;
+    } else {
+      debugDiv.innerText = `⚠️ 附近无数据 (半径${SEARCH_RADIUS/1000}km)`;
+      return [];
+    }
+  } catch(e) {
+    debugDiv.innerText = `❌ 请求失败: ${e.message}`;
+    return [];
   }
 }
 
@@ -455,7 +429,6 @@ function renderARMarkers() {
   document.querySelectorAll('[gps-entity-place]').forEach(m => m.remove());
   if (!allPOIs.length) { updateRadar(); return; }
   updateRadar();
-  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -505,7 +478,6 @@ function renderARMarkers() {
 function updateRadar() {
   if (!currentLat || !currentLng) return;
   radarMap.innerHTML = '<div class="radar-center"></div><div class="radar-north">N</div>';
-  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -531,7 +503,7 @@ async function refresh() {
   if (!isARActive) return;
   targetPOI = null;
   searchResultPanel.style.display = 'none';
-  allPOIs = await searchNearby(activeType);
+  allPOIs = await fetchNearbyPOIs();
   renderARMarkers();
 }
 
@@ -548,32 +520,34 @@ async function switchType(type) {
 async function startAR() {
   if (isStarting || isARActive) return;
   isStarting = true;
-  
   loadingDiv.classList.remove('hide');
-  
+  startBtn.disabled = true;
+
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     try {
       const perm = await DeviceOrientationEvent.requestPermission();
       if (perm !== 'granted') {
         alert('需要方向权限');
         loadingDiv.classList.add('hide');
+        startBtn.disabled = false;
         isStarting = false;
         return;
       }
     } catch(e) {
       alert('请允许方向权限');
       loadingDiv.classList.add('hide');
+      startBtn.disabled = false;
       isStarting = false;
       return;
     }
   }
-  
+
   window.addEventListener('deviceorientationabsolute', (e) => {
     if (!isARActive) return;
     currentHeading = currentHeading * 0.85 + (e.alpha || 0) * 0.15;
     updateRadar();
   });
-  
+
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       currentLat = pos.coords.latitude;
@@ -583,23 +557,20 @@ async function startAR() {
       loadingDiv.classList.add('hide');
       searchArea.classList.remove('hide');
       radarContainer.classList.remove('hide');
-      
-      // 初始化高德输入提示
-      initAutoComplete();
-      
       debugDiv.innerText = `📍 ${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`;
-      statusDiv.innerText = `📍 定位成功`;
+      statusDiv.innerText = `📍 定位成功 (半径${SEARCH_RADIUS/1000}km)`;
       await refresh();
       isStarting = false;
     },
     (err) => {
       alert('定位失败: ' + err.message);
       loadingDiv.classList.add('hide');
+      startBtn.disabled = false;
       isStarting = false;
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
-  
+
   navigator.geolocation.watchPosition(
     (pos) => {
       if (isARActive) {
@@ -617,16 +588,13 @@ async function startAR() {
 function bindEvents() {
   startBtn.addEventListener('click', (e) => { e.preventDefault(); startAR(); });
   startBtn.addEventListener('touchend', (e) => { e.preventDefault(); startAR(); });
-  
   menuToggle.addEventListener('click', () => sideMenu.classList.toggle('open'));
-  
   searchBtn.addEventListener('click', () => searchByKeyword(null));
   searchBtn.addEventListener('touchend', (e) => { e.preventDefault(); searchByKeyword(null); });
-  
+  searchInput.addEventListener('input', onSearchInput);
+  searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchByKeyword(null); });
   searchInput.addEventListener('focus', () => searchArea.classList.add('center-mode'));
   searchInput.addEventListener('blur', () => setTimeout(() => searchArea.classList.remove('center-mode'), 200));
-  searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchByKeyword(null); });
-  
   document.querySelectorAll('.cat-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.getAttribute('data-type');
@@ -634,11 +602,8 @@ function bindEvents() {
       sideMenu.classList.remove('open');
     });
   });
-  
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#search-area')) {
-      suggestList.style.display = 'none';
-    }
+    if (!e.target.closest('#search-area')) suggestList.style.display = 'none';
   });
 }
 

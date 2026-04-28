@@ -8,159 +8,293 @@
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 <style>
 body { margin:0; overflow:hidden; font-family:"微软雅黑"; }
-#top-bar { position:fixed; top:0; width:100%; display:flex; justify-content:center; background:rgba(0,0,0,0.6); padding:6px; z-index:10; }
-.button { color:#fff; margin:0 6px; padding:6px 14px; border-radius:20px; background:rgba(255,255,255,0.2); }
-.button.active { background:#007aff; }
-#card { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:#fff; padding:12px; border-radius:12px; display:none; width:280px; z-index:11; }
-#radar { position:fixed; right:10px; bottom:80px; width:120px; height:120px; background:rgba(0,0,0,0.6); border-radius:50%; }
-.dot { position:absolute; width:6px;height:6px; background:#0f0; border-radius:50%; }
-#debug { position:fixed; top:0; left:0; background:#000; color:#0f0; font-size:12px; z-index:9999; padding:5px; }
-#startBtn { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20; padding:12px 20px; background:#007aff; color:#fff; border:none; border-radius:10px; }
+#top-bar { position:fixed; top:0; width:100%; display:flex; justify-content:center; gap:12px; background:rgba(0,0,0,0.7); padding:12px; z-index:10; backdrop-filter:blur(10px); }
+.button { color:#fff; margin:0; padding:8px 20px; border-radius:25px; background:rgba(255,255,255,0.2); cursor:pointer; transition:0.3s; font-size:16px; border:none; }
+.button.active { background:#007aff; box-shadow:0 0 10px rgba(0,122,255,0.5); }
+#card { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); backdrop-filter:blur(20px); color:#fff; padding:16px; border-radius:20px; display:none; width:280px; z-index:11; text-align:center; }
+#radar { position:fixed; right:15px; bottom:100px; width:120px; height:120px; background:rgba(0,0,0,0.6); border-radius:50%; border:2px solid #00ff00; z-index:10; }
+.dot { position:absolute; width:6px; height:6px; background:#00ff00; border-radius:50%; box-shadow:0 0 5px #00ff00; }
+.dot::after { content:attr(data-name); position:absolute; bottom:8px; left:8px; background:#000; color:#fff; font-size:10px; white-space:nowrap; padding:2px 4px; border-radius:4px; display:none; }
+.dot:hover::after { display:block; }
+#debug { position:fixed; top:0; left:0; background:rgba(0,0,0,0.7); color:#0f0; font-size:10px; z-index:9999; padding:5px; font-family:monospace; pointer-events:none; }
+#startBtn { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20; padding:15px 30px; background:#007aff; color:#fff; border:none; border-radius:30px; font-size:18px; cursor:pointer; box-shadow:0 0 20px rgba(0,122,255,0.5); }
+.nav-btn { width:100%; margin-top:12px; background:#007aff; color:#fff; border:none; padding:10px; border-radius:10px; cursor:pointer; font-size:14px; }
+.close-btn { position:absolute; top:8px; right:12px; background:none; border:none; color:#fff; font-size:20px; cursor:pointer; }
 </style>
 </head>
 <body>
 
-<button id="startBtn">点击开启AR</button>
+<button id="startBtn">🎯 点击开启AR导航</button>
 <div id="top-bar"></div>
-<div id="card"></div>
+<div id="card">
+  <button class="close-btn" onclick="document.getElementById('card').style.display='none'">✕</button>
+  <div id="card-content"></div>
+</div>
 <div id="radar"></div>
-<div id="debug"></div>
+<div id="debug">初始化中...</div>
 
-<a-scene embedded arjs="sourceType: webcam;">
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
   <a-camera gps-camera rotation-reader></a-camera>
 </a-scene>
 
 <script>
-// 配置
-const WORKER_URL = 'https://gaode.903329354.workers.dev'; // 你的 Worker 域名
-const maxPOI = 15;
-const categories=[
-  {name:"餐厅",keyword:"餐厅",icon:"https://cdn-icons-png.flaticon.com/512/3075/3075977.png"},
-  {name:"咖啡",keyword:"咖啡",icon:"https://cdn-icons-png.flaticon.com/512/924/924514.png"},
-  {name:"酒店",keyword:"酒店",icon:"https://cdn-icons-png.flaticon.com/512/139/139899.png"}
+const WORKER_URL = 'https://gaode.903329354.workers.dev';
+const maxPOI = 20;
+
+const categories = [
+  { name: "🍽️ 餐厅", keyword: "餐厅", icon: "https://cdn-icons-png.flaticon.com/512/3075/3075977.png" },
+  { name: "☕ 咖啡", keyword: "咖啡", icon: "https://cdn-icons-png.flaticon.com/512/924/924514.png" },
+  { name: "🏨 酒店", keyword: "酒店", icon: "https://cdn-icons-png.flaticon.com/512/139/139899.png" }
 ];
 
-let userLat,userLng,smoothHeading=0,allPOIs=[],currentCategory="餐厅";
+let userLat = null, userLng = null;
+let smoothHeading = 0;
+let allPOIs = [];
+let currentCategory = "餐厅";
+let isARStarted = false;
+let locationWatchId = null;
 
-// 启动按钮
-document.getElementById("startBtn").onclick=async ()=>{
-  console.log("点击AR按钮");
-  // iOS方向权限
-  if (typeof DeviceOrientationEvent.requestPermission === "function") {
-    try {
-      const result = await DeviceOrientationEvent.requestPermission();
-      if (result !== "granted") {
-        alert("方向权限未授予，AR无法显示");
-        return;
-      }
-    } catch(e) { alert("方向权限请求失败"); return; }
-  }
-
-  // 获取定位
-  navigator.geolocation.getCurrentPosition(pos=>{
-    userLat = pos.coords.latitude;
-    userLng = pos.coords.longitude;
-    fetchPOIs();
-  }, err => { alert("定位失败：" + err.message); });
-
-  // 持续定位
-  navigator.geolocation.watchPosition(pos=>{
-    userLat = pos.coords.latitude;
-    userLng = pos.coords.longitude;
+// ========== 创建分类按钮 ==========
+function buildTopBar() {
+  const bar = document.getElementById("top-bar");
+  bar.innerHTML = "";
+  categories.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.className = "button" + (cat.keyword === currentCategory ? " active" : "");
+    btn.innerText = cat.name;
+    btn.onclick = () => switchCategory(cat.keyword);
+    bar.appendChild(btn);
   });
+}
 
-  // 方向监听
-  window.addEventListener("deviceorientationabsolute", e => {
-    smoothHeading += 0.1*((e.alpha||0)-smoothHeading);
-    renderPOIs();
+// ========== 切换分类 ==========
+async function switchCategory(keyword) {
+  if (!isARStarted) return;
+  currentCategory = keyword;
+  // 更新按钮样式
+  document.querySelectorAll(".button").forEach((btn, idx) => {
+    if (categories[idx].keyword === keyword) btn.classList.add("active");
+    else btn.classList.remove("active");
   });
+  document.getElementById("card").style.display = "none";
+  await fetchPOIs();
+  renderPOIs();
+}
 
-  document.getElementById("startBtn").style.display="none";
-};
-
-// 获取POI
-async function fetchPOIs(){
-  if(!userLat) return;
-  const url = `${WORKER_URL}?location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000`;
-  try{
+// ========== 获取POI数据 ==========
+async function fetchPOIs() {
+  if (!userLat || !userLng || !isARStarted) return;
+  const url = `${WORKER_URL}?location=${userLng},${userLat}&keywords=${encodeURIComponent(currentCategory)}&radius=2000`;
+  try {
     const res = await fetch(url);
     const data = await res.json();
-    if(data.status==="1") allPOIs = data.pois.slice(0,maxPOI);
-    else { console.log("高德API返回错误:", data.info); allPOIs = [] }
-  }catch(e){ console.log("请求失败",e); allPOIs=[] }
+    console.log("Worker返回:", data);
+    if (data.status === "1" && data.pois) {
+      allPOIs = data.pois.slice(0, maxPOI);
+      console.log(`获取到 ${allPOIs.length} 个${currentCategory}`);
+      updateDebugMsg();
+    } else {
+      console.log("高德API返回错误:", data.info);
+      allPOIs = [];
+    }
+  } catch (e) {
+    console.log("请求失败", e);
+    allPOIs = [];
+  }
 }
 
-// 工具
-function toRad(d){return d*Math.PI/180;}
-function getDistance(a,b,c,d){
-  const R=6371000;
-  const dLat=toRad(c-a);
-  const dLng=toRad(d-b);
-  const x=Math.sin(dLat/2)**2 + Math.cos(toRad(a))*Math.cos(toRad(c))*Math.sin(dLng/2)**2;
-  return Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
-}
-function getBearing(a,b,c,d){
-  const y=Math.sin(toRad(d-b))*Math.cos(toRad(c));
-  const x=Math.cos(toRad(a))*Math.sin(toRad(c))-Math.sin(toRad(a))*Math.cos(toRad(c))*Math.cos(toRad(d-b));
-  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+// ========== 辅助函数 ==========
+function toRad(d) { return d * Math.PI / 180; }
+
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// 雷达
-function updateRadar(){
-  const radar=document.getElementById("radar");
-  radar.innerHTML="";
-  allPOIs.forEach(poi=>{
-    const [lng,lat]=poi.location.split(",");
-    const angle=(getBearing(userLat,userLng,lat,lng)-smoothHeading)*Math.PI/180;
-    const x=60+40*Math.sin(angle);
-    const y=60-40*Math.cos(angle);
-    const dot=document.createElement("div"); dot.className="dot";
-    dot.style.left=x+"px"; dot.style.top=y+"px";
+function getBearing(lat1, lon1, lat2, lon2) {
+  const y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+// ========== 更新雷达 ==========
+function updateRadar() {
+  const radar = document.getElementById("radar");
+  radar.innerHTML = "";
+  if (!userLat || allPOIs.length === 0) return;
+  
+  allPOIs.forEach(poi => {
+    const [lng, lat] = poi.location.split(",").map(Number);
+    const angle = (getBearing(userLat, userLng, lat, lng) - smoothHeading) * Math.PI / 180;
+    const distance = getDistance(userLat, userLng, lat, lng);
+    // 最大显示半径400米，超出按边界显示
+    const displayDist = Math.min(distance, 400);
+    const radiusFromCenter = (displayDist / 400) * 40; // 最大40px
+    
+    const x = 60 + radiusFromCenter * Math.sin(angle);
+    const y = 60 - radiusFromCenter * Math.cos(angle);
+    
+    const dot = document.createElement("div");
+    dot.className = "dot";
+    dot.style.left = Math.max(2, Math.min(118, x)) + "px";
+    dot.style.top = Math.max(2, Math.min(118, y)) + "px";
+    dot.setAttribute("data-name", poi.name.substring(0, 8));
     radar.appendChild(dot);
   });
 }
 
-// 渲染
-function renderPOIs(){
-  if(!userLat || allPOIs.length===0) return;
-  const scene=document.querySelector("a-scene");
-  scene.querySelectorAll('[gps-entity-place]').forEach(e=>e.remove());
+// ========== 渲染AR POI ==========
+function renderPOIs() {
+  if (!userLat || allPOIs.length === 0 || !isARStarted) return;
+  
+  const scene = document.querySelector("a-scene");
+  const oldEntities = scene.querySelectorAll('[gps-entity-place]');
+  oldEntities.forEach(e => e.remove());
+  
   updateRadar();
-  const icon=categories.find(c=>c.keyword===currentCategory).icon;
-  allPOIs.forEach(poi=>{
-    const [lng,lat]=poi.location.split(",");
-    const dist=getDistance(userLat,userLng,lat,lng);
-    const entity=document.createElement("a-entity");
-    entity.setAttribute("gps-entity-place",`latitude:${lat}; longitude:${lng}`);
-    const img=document.createElement("a-image"); img.setAttribute("src",icon); img.setAttribute("scale","2 2 2");
-    const text=document.createElement("a-text"); text.setAttribute("value",poi.name+"\n"+dist+"米"); text.setAttribute("align","center"); text.setAttribute("position","0 -1 0");
-    entity.appendChild(img); entity.appendChild(text);
-    entity.onclick=()=>showCard(poi,dist,lng,lat);
+  
+  const currentIcon = categories.find(c => c.keyword === currentCategory)?.icon || categories[0].icon;
+  
+  allPOIs.forEach(poi => {
+    const [lng, lat] = poi.location.split(",").map(Number);
+    const distance = getDistance(userLat, userLng, lat, lng);
+    
+    const entity = document.createElement("a-entity");
+    entity.setAttribute("gps-entity-place", `latitude:${lat}; longitude:${lng}`);
+    entity.setAttribute("scale", "1.5 1.5 1.5");
+    
+    const img = document.createElement("a-image");
+    img.setAttribute("src", currentIcon);
+    img.setAttribute("scale", "1.5 1.5 1.5");
+    
+    const text = document.createElement("a-text");
+    text.setAttribute("value", `${poi.name.substring(0, 12)}\n${distance}m`);
+    text.setAttribute("align", "center");
+    text.setAttribute("position", "0 -0.8 0");
+    text.setAttribute("color", "#fff");
+    text.setAttribute("background", "rgba(0,0,0,0.5)");
+    
+    entity.appendChild(img);
+    entity.appendChild(text);
+    entity.addEventListener("click", () => showCard(poi, distance, lng, lat));
     scene.appendChild(entity);
   });
 }
 
-// 卡片
-function showCard(poi,dist,lng,lat){
-  const card=document.getElementById("card");
-  card.innerHTML=`
-    <div style="font-weight:bold;">${poi.name}</div>
-    <div>距离 ${dist} 米</div>
-    <button onclick="goNav('${lng}','${lat}','${poi.name}')" style="width:100%;margin-top:10px;background:#007aff;color:#fff;">导航</button>
+// ========== 显示卡片 ==========
+function showCard(poi, dist, lng, lat) {
+  const cardContent = document.getElementById("card-content");
+  cardContent.innerHTML = `
+    <div style="font-size:18px; font-weight:bold; margin-bottom:8px;">${poi.name}</div>
+    <div style="margin-bottom:5px;">🗺️ 距离: ${dist} 米</div>
+    <div style="margin-bottom:5px;">📍 ${poi.address || "地址信息暂无"}</div>
+    ${poi.tel ? `<div style="margin-bottom:5px;">📞 ${poi.tel}</div>` : ""}
+    <button class="nav-btn" onclick="goNav('${lng}','${lat}','${poi.name.replace(/'/g, "\\'")}')">🧭 高德导航</button>
   `;
-  card.style.display="block";
+  document.getElementById("card").style.display = "block";
 }
 
-// 导航
-function goNav(lng,lat,name){ window.open(`https://uri.amap.com/navigation?to=${lng},${lat},${name}`); }
+// ========== 导航 ==========
+function goNav(lng, lat, name) {
+  window.open(`https://uri.amap.com/navigation?to=${lng},${lat},${encodeURIComponent(name)}&mode=car`);
+}
 
-// 调试面板
-setInterval(()=>{
-  document.getElementById("debug").innerText =
-    "定位: "+userLat+","+userLng+"\n"+
-    "POI数量: "+(allPOIs?allPOIs.length:"null")+"\n"+
-    "方向: "+smoothHeading;
-},1000);
+// ========== 更新调试信息 ==========
+function updateDebugMsg() {
+  const msg = `📍 ${userLat?.toFixed(4) || "?"}, ${userLng?.toFixed(4) || "?"}\n🎯 ${currentCategory} | ${allPOIs.length}个POI\n🧭 方向: ${Math.round(smoothHeading)}°\n✅ AR运行中`;
+  document.getElementById("debug").innerText = msg;
+}
+
+// ========== 初始化定位 ==========
+async function startAR() {
+  console.log("开始AR...");
+  
+  // iOS方向权限
+  if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+    try {
+      const result = await DeviceOrientationEvent.requestPermission();
+      if (result !== "granted") {
+        alert("需要授予方向权限才能使用AR功能");
+        return;
+      }
+      window.addEventListener("deviceorientationabsolute", onOrientationChange);
+    } catch (e) {
+      alert("请点击允许方向权限");
+      console.error(e);
+      return;
+    }
+  } else {
+    // Android 直接监听
+    window.addEventListener("deviceorientationabsolute", onOrientationChange);
+  }
+  
+  // 获取位置
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      isARStarted = true;
+      await fetchPOIs();
+      renderPOIs();
+      updateDebugMsg();
+      document.getElementById("startBtn").style.display = "none";
+    },
+    (err) => {
+      alert("定位失败: " + err.message);
+      console.error(err);
+    },
+    { enableHighAccuracy: true }
+  );
+  
+  // 持续监听位置
+  locationWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      renderPOIs();
+      updateDebugMsg();
+    },
+    (err) => console.log("位置更新失败", err),
+    { enableHighAccuracy: true }
+  );
+}
+
+// ========== 方向变化 ==========
+let lastTimestamp = 0;
+function onOrientationChange(e) {
+  if (!isARStarted) return;
+  const now = Date.now();
+  if (now - lastTimestamp < 50) return;
+  lastTimestamp = now;
+  
+  let alpha = e.alpha || 0;
+  smoothHeading = smoothHeading * 0.85 + alpha * 0.15;
+  renderPOIs();
+  updateDebugMsg();
+}
+
+// ========== 页面关闭时清理 ==========
+window.addEventListener("beforeunload", () => {
+  if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
+});
+
+// ========== 页面启动 ==========
+buildTopBar();
+document.getElementById("startBtn").onclick = startAR;
+
+// 初始化调试显示
+setInterval(() => {
+  if (!isARStarted) {
+    document.getElementById("debug").innerHTML = "🔴 未启动<br>点击下方按钮开始";
+  } else if (allPOIs.length === 0 && userLat) {
+    document.getElementById("debug").innerHTML = `📍 ${userLat?.toFixed(4) || "?"}, ${userLng?.toFixed(4) || "?"}\n⏳ 加载POI中...`;
+  } else {
+    updateDebugMsg();
+  }
+}, 1000);
 </script>
 </body>
 </html>

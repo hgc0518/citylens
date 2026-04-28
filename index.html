@@ -10,31 +10,31 @@
 * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 
-/* 顶部调试信息 - 上移 */
+/* 顶部调试信息 */
 #debug {
   position:fixed;
   top:5px;
   left:5px;
-  background:rgba(0,0,0,0.75);
+  background:rgba(0,0,0,0.7);
   color:#0f0;
   font-size:10px;
   z-index:9999;
-  padding:6px 10px;
-  border-radius:8px;
+  padding:5px 8px;
+  border-radius:6px;
   font-family:monospace;
   pointer-events:none;
   backdrop-filter:blur(4px);
-  max-width:75%;
-  line-height:1.4;
+  max-width:70%;
+  line-height:1.3;
 }
 
-/* 顶部菜单 - 可折叠 */
+/* 菜单按钮 - 右上角 */
 #menu-toggle {
   position:fixed;
-  top:12px;
-  right:12px;
-  width:40px;
-  height:40px;
+  top:10px;
+  right:10px;
+  width:38px;
+  height:38px;
   background:rgba(0,0,0,0.7);
   border-radius:50%;
   display:flex;
@@ -43,10 +43,11 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   z-index:20;
   cursor:pointer;
   color:white;
-  font-size:22px;
-  border:1px solid rgba(255,255,255,0.3);
+  font-size:20px;
   backdrop-filter:blur(5px);
 }
+
+/* 顶部菜单 */
 #top-bar {
   position:fixed;
   top:0;
@@ -60,7 +61,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   transition:transform 0.3s ease;
   display:flex;
   flex-wrap:wrap;
-  gap:8px;
+  gap:6px;
   border-bottom:1px solid rgba(255,255,255,0.2);
 }
 #top-bar.open {
@@ -68,23 +69,15 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 }
 .button {
   color:#fff;
-  padding:6px 14px;
+  padding:5px 12px;
   border-radius:20px;
   background:rgba(255,255,255,0.15);
   cursor:pointer;
-  transition:0.2s;
-  font-size:12px;
+  font-size:11px;
   border:none;
-  white-space:nowrap;
-  -webkit-tap-highlight-color: transparent;
-}
-.button:active {
-  transform:scale(0.96);
-  background:rgba(255,255,255,0.3);
 }
 .button.active {
   background:#007aff;
-  box-shadow:0 0 8px rgba(0,122,255,0.5);
 }
 
 /* 卡片 */
@@ -96,42 +89,41 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   background:rgba(0,0,0,0.92);
   backdrop-filter:blur(20px);
   color:#fff;
-  padding:16px;
-  border-radius:20px;
+  padding:14px;
+  border-radius:18px;
   display:none;
-  width:280px;
+  width:260px;
   z-index:11;
   text-align:center;
 }
 .close-btn {
   position:absolute;
-  top:8px;
-  right:12px;
+  top:6px;
+  right:10px;
   background:none;
   border:none;
   color:#fff;
-  font-size:20px;
+  font-size:18px;
   cursor:pointer;
 }
 .nav-btn {
   width:100%;
-  margin-top:12px;
+  margin-top:10px;
   background:#007aff;
   color:#fff;
   border:none;
-  padding:10px;
+  padding:8px;
   border-radius:10px;
   cursor:pointer;
-  font-size:14px;
 }
 
 /* 雷达 */
 #radar {
   position:fixed;
-  right:15px;
-  bottom:100px;
-  width:100px;
-  height:100px;
+  right:10px;
+  bottom:90px;
+  width:80px;
+  height:80px;
   background:rgba(0,0,0,0.6);
   border-radius:50%;
   border:2px solid #00ff00;
@@ -139,53 +131,80 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 }
 .dot {
   position:absolute;
-  width:8px;
-  height:8px;
+  width:6px;
+  height:6px;
   background:#ff4444;
   border-radius:50%;
-  box-shadow:0 0 5px #ff4444;
 }
 
-/* 底部搜索栏 */
-#search-bar {
+/* ========== 搜索区域 - 缩小版 ========== */
+#search-container {
   position:fixed;
   bottom:15px;
   left:15px;
   right:15px;
+  z-index:20;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  max-width: calc(100% - 30px);
+}
+#search-box {
+  display:flex;
+  gap:8px;
   background:rgba(0,0,0,0.85);
   backdrop-filter:blur(10px);
-  border-radius:30px;
-  display:flex;
-  padding:5px;
-  z-index:20;
-  gap:8px;
+  border-radius:50px;
+  padding:4px;
   border:1px solid rgba(255,255,255,0.2);
 }
 #search-input {
   flex:1;
   background:rgba(255,255,255,0.1);
   border:none;
-  padding:10px 15px;
-  border-radius:30px;
+  padding:8px 15px;
+  border-radius:50px;
   color:#fff;
-  font-size:14px;
+  font-size:13px;
   outline:none;
 }
 #search-input::placeholder {
   color:rgba(255,255,255,0.5);
+  font-size:12px;
 }
 #search-btn {
   background:#007aff;
   border:none;
-  padding:8px 18px;
-  border-radius:30px;
+  padding:6px 16px;
+  border-radius:50px;
   color:#fff;
-  font-size:14px;
+  font-size:13px;
   cursor:pointer;
   white-space:nowrap;
 }
-#search-btn:active {
-  transform:scale(0.96);
+
+/* 联想下拉框 */
+#suggestions {
+  background:rgba(0,0,0,0.9);
+  backdrop-filter:blur(10px);
+  border-radius:16px;
+  max-height:150px;
+  overflow-y:auto;
+  display:none;
+  border:1px solid rgba(255,255,255,0.15);
+}
+.suggestion-item {
+  padding:8px 15px;
+  color:#fff;
+  font-size:13px;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  cursor:pointer;
+}
+.suggestion-item:active {
+  background:rgba(255,255,255,0.2);
+}
+.suggestion-item:last-child {
+  border-bottom:none;
 }
 
 /* 开始按钮 */
@@ -201,17 +220,11 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   border:none;
   border-radius:40px;
   font-size:14px;
-  font-weight:500;
   cursor:pointer;
   box-shadow:0 2px 12px rgba(0,0,0,0.3);
-  transition:0.2s;
-  white-space:nowrap;
 }
-#startBtn:active {
-  transform:translateX(-50%) scale(0.96);
-}
-.hidden {
-  display:none !important;
+#startBtn.hidden {
+  display:none;
 }
 
 /* 加载提示 */
@@ -222,19 +235,18 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   transform:translate(-50%,-50%);
   background:rgba(0,0,0,0.85);
   color:#fff;
-  padding:12px 24px;
+  padding:10px 20px;
   border-radius:30px;
-  font-size:14px;
+  font-size:13px;
   z-index:25;
   display:none;
-  white-space:nowrap;
 }
 </style>
 </head>
 <body>
 
 <button id="startBtn">🎯 开启AR导航</button>
-<div id="loading">⏳ 定位中，请稍候...</div>
+<div id="loading">⏳ 定位中...</div>
 <div id="menu-toggle">☰</div>
 <div id="top-bar">
   <button class="button" data-cat="餐饮服务">🍽️ 餐厅</button>
@@ -252,10 +264,13 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   <div id="card-content"></div>
 </div>
 <div id="radar"></div>
-<div id="debug">🔴 未启动<br>点击下方按钮</div>
-<div id="search-bar">
-  <input type="text" id="search-input" placeholder="🔍 搜索地点，如：麦当劳、超市..." />
-  <button id="search-btn">搜索</button>
+<div id="debug">🔴 未启动</div>
+<div id="search-container">
+  <div id="search-box">
+    <input type="text" id="search-input" placeholder="🔍 搜索地点..." autocomplete="off" />
+    <button id="search-btn">搜索</button>
+  </div>
+  <div id="suggestions"></div>
 </div>
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
@@ -264,7 +279,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 
 <script>
 const WORKER_URL = 'https://gaode.903329354.workers.dev';
-const maxPOI = 30;
+const maxPOI = 35;
 
 // 分类配置
 const categories = [
@@ -286,24 +301,79 @@ let currentCategory = categories[0];
 let isARStarted = false;
 let locationWatchId = null;
 let isMenuOpen = false;
-let customKeyword = null; // 自定义搜索关键词
+let customKeyword = null;
+
+// ========== 高德输入提示（联想） ==========
+let suggestTimeout = null;
+
+async function fetchSuggestions(keyword) {
+  if (!keyword || keyword.length < 2) {
+    document.getElementById("suggestions").style.display = "none";
+    return;
+  }
+  
+  // 使用高德输入提示API
+  const url = `https://restapi.amap.com/v3/assistant/inputtips?key=28c589f6e6d2f024637ed23a480378c9&keywords=${encodeURIComponent(keyword)}&location=${userLng || 121.0769},${userLat || 31.9268}`;
+  
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data.status === "1" && data.tips && data.tips.length > 0) {
+      const suggestions = document.getElementById("suggestions");
+      suggestions.innerHTML = "";
+      // 去重显示前8个
+      const seen = new Set();
+      const uniqueTips = data.tips.filter(tip => {
+        if (seen.has(tip.name)) return false;
+        seen.add(tip.name);
+        return true;
+      }).slice(0, 8);
+      
+      uniqueTips.forEach(tip => {
+        const div = document.createElement("div");
+        div.className = "suggestion-item";
+        div.innerText = tip.name;
+        if (tip.address) div.innerText += ` · ${tip.address.substring(0, 20)}`;
+        div.onclick = () => {
+          document.getElementById("search-input").value = tip.name;
+          document.getElementById("suggestions").style.display = "none";
+          customSearchWithKeyword(tip.name);
+        };
+        suggestions.appendChild(div);
+      });
+      suggestions.style.display = "block";
+    } else {
+      document.getElementById("suggestions").style.display = "none";
+    }
+  } catch (e) {
+    console.log("联想失败:", e);
+    document.getElementById("suggestions").style.display = "none";
+  }
+}
+
+function onSearchInput() {
+  if (suggestTimeout) clearTimeout(suggestTimeout);
+  const keyword = document.getElementById("search-input").value;
+  suggestTimeout = setTimeout(() => {
+    fetchSuggestions(keyword);
+  }, 300);
+}
 
 // ========== 菜单折叠 ==========
 function toggleMenu() {
   isMenuOpen = !isMenuOpen;
   const bar = document.getElementById("top-bar");
-  if (isMenuOpen) {
-    bar.classList.add("open");
-  } else {
-    bar.classList.remove("open");
-  }
+  bar.classList.toggle("open", isMenuOpen);
 }
 
 // ========== 切换分类 ==========
 async function switchCategory(cat) {
   if (!isARStarted) return;
   currentCategory = cat;
-  customKeyword = null; // 清除自定义搜索
+  customKeyword = null;
+  document.getElementById("search-input").value = "";
+  document.getElementById("suggestions").style.display = "none";
   
   document.querySelectorAll(".button").forEach((btn, idx) => {
     if (idx < categories.length && categories[idx].keyword === cat.keyword) {
@@ -319,23 +389,28 @@ async function switchCategory(cat) {
 }
 
 // ========== 自定义搜索 ==========
-async function customSearch() {
+async function customSearchWithKeyword(keyword) {
   if (!isARStarted) {
     alert("请先点击「开启AR导航」");
     return;
   }
-  const input = document.getElementById("search-input");
-  const keyword = input.value.trim();
+  if (!keyword) {
+    keyword = document.getElementById("search-input").value.trim();
+  }
   if (!keyword) {
     alert("请输入搜索内容");
     return;
   }
   
   customKeyword = keyword;
-  // 移除分类高亮
   document.querySelectorAll(".button").forEach(btn => btn.classList.remove("active"));
+  document.getElementById("suggestions").style.display = "none";
   await fetchPOIs();
   renderPOIs();
+}
+
+async function customSearch() {
+  await customSearchWithKeyword(null);
 }
 
 // ========== 获取POI数据 ==========
@@ -349,7 +424,8 @@ async function fetchPOIs() {
     keyword = currentCategory.keyword;
   }
   
-  const url = `${WORKER_URL}?location=${userLng},${userLat}&keywords=${encodeURIComponent(keyword)}&radius=2000&offset=${maxPOI}`;
+  // 直接使用 keywords 参数，让高德自动匹配
+  const url = `${WORKER_URL}?location=${userLng},${userLat}&keywords=${encodeURIComponent(keyword)}&radius=3000&offset=${maxPOI}`;
   
   console.log("请求:", url);
   updateDebugMsg("搜索中...");
@@ -364,7 +440,7 @@ async function fetchPOIs() {
       const searchType = customKeyword ? `"${customKeyword}"` : currentCategory.name;
       updateDebugMsg(`✅ ${allPOIs.length}个${searchType}`);
     } else {
-      updateDebugMsg(`⚠️ 无结果`);
+      updateDebugMsg(`⚠️ 未找到"${customKeyword || keyword}"`);
       allPOIs = [];
     }
   } catch (e) {
@@ -392,7 +468,6 @@ function getBearing(lat1, lon1, lat2, lon2) {
 
 function updateRadar() {
   const radar = document.getElementById("radar");
-  if (!radar) return;
   radar.innerHTML = "";
   if (!userLat || !allPOIs || allPOIs.length === 0) return;
   
@@ -405,11 +480,11 @@ function updateRadar() {
     const angle = (bearing - smoothHeading) * Math.PI / 180;
     const distance = getDistance(userLat, userLng, lat, lng);
     
-    let radiusFromCenter = Math.min(distance, 150) / 150 * 40;
-    let x = 50 + radiusFromCenter * Math.sin(angle);
-    let y = 50 - radiusFromCenter * Math.cos(angle);
-    x = Math.min(95, Math.max(5, x));
-    y = Math.min(95, Math.max(5, y));
+    let radiusFromCenter = Math.min(distance, 150) / 150 * 35;
+    let x = 40 + radiusFromCenter * Math.sin(angle);
+    let y = 40 - radiusFromCenter * Math.cos(angle);
+    x = Math.min(75, Math.max(5, x));
+    y = Math.min(75, Math.max(5, y));
     
     const dot = document.createElement("div");
     dot.className = "dot";
@@ -431,11 +506,8 @@ function renderPOIs() {
   
   updateRadar();
   
-  // 决定用的图标
-  let iconUrl;
-  if (customKeyword) {
-    iconUrl = "https://cdn-icons-png.flaticon.com/512/684/684908.png"; // 搜索图标
-  } else {
+  let iconUrl = "https://cdn-icons-png.flaticon.com/512/684/684908.png";
+  if (!customKeyword && currentCategory.icon) {
     iconUrl = currentCategory.icon;
   }
   
@@ -455,7 +527,7 @@ function renderPOIs() {
     img.setAttribute("scale", "1 1 1");
     
     const text = document.createElement("a-text");
-    const shortName = poi.name.length > 8 ? poi.name.substring(0, 8) + ".." : poi.name;
+    const shortName = poi.name.length > 10 ? poi.name.substring(0, 10) + ".." : poi.name;
     text.setAttribute("value", `${shortName}\n${distance}m`);
     text.setAttribute("align", "center");
     text.setAttribute("position", "0 -0.7 0");
@@ -470,16 +542,16 @@ function renderPOIs() {
   });
   
   const searchType = customKeyword ? `"${customKeyword}"` : currentCategory.name;
-  updateDebugMsg(`${allPOIs.length}个${searchType} | ${Math.round(smoothHeading)}°`);
+  updateDebugMsg(`${allPOIs.length}个${searchType} · ${Math.round(smoothHeading)}°`);
 }
 
 function showCard(poi, dist, lng, lat) {
   const cardContent = document.getElementById("card-content");
   cardContent.innerHTML = `
-    <div style="font-size:18px; font-weight:bold; margin-bottom:8px;">${poi.name}</div>
-    <div style="margin-bottom:5px;">🗺️ 距离: ${dist} 米</div>
-    <div style="margin-bottom:5px; font-size:12px;">📍 ${poi.address || "暂无"}</div>
-    ${poi.tel ? `<div style="margin-bottom:5px;">📞 ${poi.tel}</div>` : ""}
+    <div style="font-size:16px; font-weight:bold;">${poi.name}</div>
+    <div style="margin:5px 0;">🗺️ ${dist}米</div>
+    <div style="font-size:11px;">📍 ${poi.address || "暂无"}</div>
+    ${poi.tel ? `<div style="font-size:11px;">📞 ${poi.tel}</div>` : ""}
     <button class="nav-btn" onclick="goNav('${lng}','${lat}','${poi.name.replace(/'/g, "\\'")}')">🧭 导航</button>
   `;
   document.getElementById("card").style.display = "block";
@@ -491,9 +563,8 @@ function goNav(lng, lat, name) {
 
 function updateDebugMsg(extra = "") {
   const searchInfo = customKeyword ? `🔍 ${customKeyword}` : `📁 ${currentCategory.name}`;
-  const msg = `📍 ${userLat?.toFixed(4) || "?"}, ${userLng?.toFixed(4) || "?"}\n${searchInfo} | ${allPOIs?.length || 0}个 | 🧭 ${Math.round(smoothHeading)}°\n${extra}`;
-  const debugEl = document.getElementById("debug");
-  if (debugEl) debugEl.innerText = msg;
+  const msg = `${userLat?.toFixed(4) || "?"}, ${userLng?.toFixed(4) || "?"}\n${searchInfo} | ${allPOIs?.length || 0}个 | ${Math.round(smoothHeading)}°\n${extra}`;
+  document.getElementById("debug").innerText = msg;
 }
 
 // ========== 启动AR ==========
@@ -503,7 +574,6 @@ async function startAR() {
   if (isStarting || isARStarted) return;
   isStarting = true;
   
-  console.log("启动AR...");
   const loading = document.getElementById("loading");
   const startBtn = document.getElementById("startBtn");
   
@@ -511,7 +581,6 @@ async function startAR() {
   startBtn.disabled = true;
   
   try {
-    // iOS方向权限
     if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
       try {
         const result = await DeviceOrientationEvent.requestPermission();
@@ -531,15 +600,12 @@ async function startAR() {
       }
     }
     
-    // 监听方向
     window.addEventListener("deviceorientationabsolute", (e) => {
       if (!isARStarted) return;
-      let alpha = e.alpha || 0;
-      smoothHeading = smoothHeading * 0.9 + alpha * 0.1;
+      smoothHeading = smoothHeading * 0.9 + (e.alpha || 0) * 0.1;
       renderPOIs();
     });
     
-    // 获取位置
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         userLat = pos.coords.latitude;
@@ -553,10 +619,8 @@ async function startAR() {
         await fetchPOIs();
         renderPOIs();
         
-        // 菜单默认打开
         isMenuOpen = true;
         document.getElementById("top-bar").classList.add("open");
-        
         isStarting = false;
       },
       (err) => {
@@ -580,9 +644,7 @@ async function startAR() {
       null,
       { enableHighAccuracy: true }
     );
-    
   } catch (e) {
-    console.error("启动失败:", e);
     loading.style.display = "none";
     startBtn.disabled = false;
     isStarting = false;
@@ -595,26 +657,26 @@ function bindEvents() {
   
   document.querySelectorAll(".button").forEach((btn, idx) => {
     btn.onclick = () => {
-      if (idx < categories.length) {
-        switchCategory(categories[idx]);
-      }
+      if (idx < categories.length) switchCategory(categories[idx]);
     };
   });
   
   document.getElementById("search-btn").onclick = customSearch;
+  document.getElementById("search-input").addEventListener("input", onSearchInput);
   document.getElementById("search-input").onkeypress = (e) => {
     if (e.key === "Enter") customSearch();
   };
   
-  const startBtn = document.getElementById("startBtn");
-  startBtn.onclick = startAR;
-  startBtn.ontouchend = (e) => {
-    e.preventDefault();
-    startAR();
-  };
+  // 点击其他地方关闭联想
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#search-container")) {
+      document.getElementById("suggestions").style.display = "none";
+    }
+  });
+  
+  document.getElementById("startBtn").onclick = startAR;
 }
 
-// ========== 初始化 ==========
 bindEvents();
 document.getElementById("top-bar").classList.remove("open");
 

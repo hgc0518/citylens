@@ -118,6 +118,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   border-bottom:1px solid rgba(255,255,255,0.08);
   cursor:pointer;
 }
+.suggest-item:active { background:rgba(255,255,255,0.2); }
 
 /* 雷达 */
 #radar-container {
@@ -208,7 +209,7 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   border-left:3px solid #ffaa00;
 }
 
-/* 启动按钮 - 优化点击区域 */
+/* 启动按钮 */
 #startBtn {
   position:fixed;
   top:50%;
@@ -226,13 +227,8 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   box-shadow:0 0 35px rgba(0,122,255,0.8);
   animation:pulse 1.5s infinite;
   min-width:220px;
-  letter-spacing:2px;
-  transition:0.05s linear;
 }
-#startBtn:active {
-  transform:translate(-50%,-50%) scale(0.96);
-  background:#0055bb;
-}
+#startBtn:active { transform:translate(-50%,-50%) scale(0.96); }
 @keyframes pulse {
   0% { transform:translate(-50%,-50%) scale(1); opacity:1; }
   50% { transform:translate(-50%,-50%) scale(1.02); opacity:0.95; }
@@ -250,31 +246,24 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
   color:white;
   z-index:250;
   font-size:16px;
-  white-space:nowrap;
 }
 </style>
 </head>
 <body>
 
 <button id="startBtn">🚀 启动AR视角</button>
-<div id="loading" class="hide">⏳ 定位中，请稍候...</div>
+<div id="loading" class="hide">⏳ 定位中...</div>
 
 <div id="side-menu">
-  <button class="cat-btn" data-type="餐饮">🍔 餐饮</button>
-  <button class="cat-btn" data-type="咖啡">☕ 咖啡</button>
+  <button class="cat-btn" data-type="餐饮服务">🍔 餐饮</button>
+  <button class="cat-btn" data-type="咖啡厅">☕ 咖啡</button>
   <button class="cat-btn" data-type="酒店">🏨 酒店</button>
-  <button class="cat-btn" data-type="购物">🛒 购物</button>
-  <button class="cat-btn" data-type="景点">🏛️ 景点</button>
-  <button class="cat-btn" data-type="KTV">🎤 KTV</button>
-  <button class="cat-btn" data-type="加油站">⛽ 加油站</button>
-  <button class="cat-btn" data-type="医院">🏥 医院</button>
-  <button class="cat-btn" data-type="学校">📚 学校</button>
 </div>
 <div id="menu-toggle">☰</div>
 
 <div id="search-area" class="hide">
   <div id="search-box">
-    <input type="text" id="search-input" placeholder="🔍 搜索地点，如：南通" autocomplete="off">
+    <input type="text" id="search-input" placeholder="🔍 搜索地点" autocomplete="off">
     <button id="search-btn">搜索</button>
   </div>
   <div id="suggest-list"></div>
@@ -297,18 +286,17 @@ body { overflow:hidden; font-family:'Segoe UI','微软雅黑',sans-serif; }
 </a-scene>
 
 <script>
-// ========== 腾讯地图配置 ==========
-const TENCENT_KEY = 'JYNBZ-BXQCI-PJRG6-UGZ5D-P6IA7-THFR6';
+// ========== 使用高德Worker（你的Worker支持搜索） ==========
+const WORKER_URL = 'https://gaode.903329354.workers.dev';
 
 let currentLat = null, currentLng = null;
 let currentHeading = 0;
 let allPOIs = [];
-let activeType = "餐饮";
+let activeType = "餐饮服务";
 let isARActive = false;
 let targetPOI = null;
 let isStarting = false;
 
-// DOM 元素
 const startBtn = document.getElementById('startBtn');
 const loadingDiv = document.getElementById('loading');
 const debugDiv = document.getElementById('debug');
@@ -323,7 +311,6 @@ const suggestList = document.getElementById('suggest-list');
 const radarMap = document.getElementById('radar-map');
 const searchResultPanel = document.getElementById('search-result-panel');
 
-// 辅助函数
 function rad(d) { return d * Math.PI / 180; }
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -339,35 +326,28 @@ function getBearing(lat1, lon1, lat2, lon2) {
 }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 
-// ========== 腾讯地图联想搜索 ==========
+// 搜索联想（通过Worker）
 let suggestTimer = null;
-
-async function fetchTencentSuggestions(keyword) {
+async function fetchSuggestions(keyword) {
   if (!keyword || keyword.length < 2) {
     suggestList.style.display = 'none';
     return;
   }
-  
-  const region = (currentLat && currentLng) ? `${currentLat},${currentLng}` : '南通';
-  const url = `https://apis.map.qq.com/ws/place/v1/suggestion?region=${region}&keyword=${encodeURIComponent(keyword)}&key=${TENCENT_KEY}`;
-  
+  const url = `${WORKER_URL}?type=tips&keywords=${encodeURIComponent(keyword)}&location=${currentLat ? `${currentLng},${currentLat}` : ''}`;
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    
     suggestList.innerHTML = '';
-    
-    if (data.status === 0 && data.data && data.data.length > 0) {
-      const items = data.data.slice(0, 8);
-      items.forEach(item => {
+    if (data.status === '1' && data.tips && data.tips.length > 0) {
+      const items = data.tips.slice(0, 8);
+      items.forEach(tip => {
         const div = document.createElement('div');
         div.className = 'suggest-item';
-        div.innerHTML = `<b>${escapeHtml(item.title)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(item.address || '')}</span>`;
-        div.onclick = (e) => {
-          e.stopPropagation();
-          searchInput.value = item.title;
+        div.innerHTML = `<b>${escapeHtml(tip.name)}</b><br><span style="font-size:10px; color:#aaa;">${escapeHtml(tip.address || '')}</span>`;
+        div.onclick = () => {
+          searchInput.value = tip.name;
           suggestList.style.display = 'none';
-          searchTencentLocation(item.title, item.location);
+          searchByKeyword(tip.name);
           searchInput.blur();
         };
         suggestList.appendChild(div);
@@ -377,60 +357,30 @@ async function fetchTencentSuggestions(keyword) {
       suggestList.style.display = 'none';
     }
   } catch(e) {
-    console.error('联想失败:', e);
     suggestList.style.display = 'none';
   }
 }
-
 function onSearchInput() {
   if (suggestTimer) clearTimeout(suggestTimer);
   const kw = searchInput.value.trim();
-  suggestTimer = setTimeout(() => fetchTencentSuggestions(kw), 300);
+  suggestTimer = setTimeout(() => fetchSuggestions(kw), 350);
 }
 
-// ========== 腾讯地图搜索 ==========
-async function searchTencentLocation(keyword, location) {
-  if (!isARActive) { 
-    alert('请先点击「启动AR视角」'); 
-    return; 
-  }
+// 搜索
+async function searchByKeyword(keyword) {
+  if (!isARActive) { alert('请先启动AR'); return; }
   if (!keyword) keyword = searchInput.value.trim();
   if (!keyword) return;
-  
   debugDiv.innerText = `🔍 搜索: ${keyword}...`;
-  
-  if (location && location.lat && location.lng) {
-    const poi = {
-      name: keyword,
-      location: `${location.lng},${location.lat}`,
-      address: ''
-    };
-    allPOIs = [poi];
-    targetPOI = poi;
-    renderARMarkers();
-    const dist = getDistance(currentLat, currentLng, location.lat, location.lng);
-    searchResultPanel.style.display = 'block';
-    searchResultPanel.innerHTML = `🎯 ${keyword}<br>📏 ${dist}米`;
-    debugDiv.innerText = `✅ 找到目标`;
-    statusDiv.innerText = `🎯 ${keyword.slice(0,15)} ${dist}m`;
-    return;
-  }
-  
-  const url = `https://apis.map.qq.com/ws/place/v1/search?boundary=nearby(${currentLat},${currentLng},2000)&keyword=${encodeURIComponent(keyword)}&key=${TENCENT_KEY}`;
-  
+  const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(keyword)}&radius=2000&offset=20`;
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    
-    if (data.status === 0 && data.data && data.data.length > 0) {
-      allPOIs = data.data.slice(0, 30).map(item => ({
-        name: item.title,
-        location: `${item.location.lng},${item.location.lat}`,
-        address: item.address
-      }));
+    if (data.status === '1' && data.pois && data.pois.length > 0) {
+      allPOIs = data.pois.slice(0, 30);
       targetPOI = allPOIs[0];
       renderARMarkers();
-      const dist = getDistance(currentLat, currentLng, parseFloat(allPOIs[0].location.split(',')[1]), parseFloat(allPOIs[0].location.split(',')[0]));
+      const dist = getDistance(currentLat, currentLng, parseFloat(targetPOI.location.split(',')[1]), parseFloat(targetPOI.location.split(',')[0]));
       searchResultPanel.style.display = 'block';
       searchResultPanel.innerHTML = `🎯 ${targetPOI.name}<br>📏 ${dist}米`;
       debugDiv.innerText = `✅ ${allPOIs.length} 个结果`;
@@ -440,51 +390,42 @@ async function searchTencentLocation(keyword, location) {
       allPOIs = [];
       renderARMarkers();
     }
-  } catch(e) { 
-    console.error(e);
-    debugDiv.innerText = `❌ 搜索失败`; 
-  }
+  } catch(e) { debugDiv.innerText = `❌ 搜索失败`; }
 }
 
-// ========== 获取周边POI ==========
+// 获取周边POI
 async function fetchNearbyPOIs() {
   if (!currentLat || !currentLng) return [];
-  
-  const url = `https://apis.map.qq.com/ws/place/v1/search?boundary=nearby(${currentLat},${currentLng},1000)&keyword=${encodeURIComponent(activeType)}&page_size=30&key=${TENCENT_KEY}`;
-  
+  const url = `${WORKER_URL}?type=search&location=${currentLng},${currentLat}&keywords=${encodeURIComponent(activeType)}&radius=800&offset=30`;
   try {
     const resp = await fetch(url);
     const data = await resp.json();
-    
-    if (data.status === 0 && data.data && data.data.length > 0) {
-      const pois = data.data.map(item => ({
-        name: item.title,
-        location: `${item.location.lng},${item.location.lat}`,
-        address: item.address,
-        tel: item.tel || ''
+    if (data.status === '1' && data.pois && data.pois.length > 0) {
+      const pois = data.pois.map(poi => ({
+        name: poi.name,
+        location: poi.location,
+        address: poi.address
       }));
-      debugDiv.innerText = `✅ ${pois.length} 个${activeType}`;
+      debugDiv.innerText = `✅ ${pois.length} 个${activeType === '餐饮服务' ? '餐饮' : activeType}`;
       statusDiv.innerText = `📍 ${pois.length} 个地点`;
       return pois;
     } else {
-      debugDiv.innerText = `⚠️ 附近无${activeType}`;
+      debugDiv.innerText = `⚠️ 附近无数据`;
       return [];
     }
   } catch(e) { 
-    console.error('请求失败:', e);
     debugDiv.innerText = `❌ 请求失败`; 
     return []; 
   }
 }
 
-// ========== 渲染AR ==========
+// 渲染AR
 function renderARMarkers() {
   const scene = document.getElementById('scene');
   if (!scene) return;
   document.querySelectorAll('[gps-entity-place]').forEach(m => m.remove());
   if (!allPOIs.length) { updateRadar(); return; }
   updateRadar();
-  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -530,11 +471,9 @@ function renderARMarkers() {
   });
 }
 
-// ========== 更新雷达 ==========
 function updateRadar() {
   if (!currentLat || !currentLng) return;
   radarMap.innerHTML = '<div class="radar-center"></div><div class="radar-north">N</div>';
-  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(',').map(Number);
@@ -573,51 +512,25 @@ async function switchType(type) {
   await refresh();
 }
 
-// ========== 启动AR（优化版） ==========
+// 启动AR
 async function startAR() {
-  // 防止重复点击
-  if (isStarting || isARActive) {
-    console.log('已经在启动中或已启动');
-    return;
-  }
+  if (isStarting || isARActive) return;
   isStarting = true;
-  
-  console.log('启动AR...');
-  startBtn.disabled = true;
   loadingDiv.classList.remove('hide');
   
-  // iOS方向权限
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     try {
       const perm = await DeviceOrientationEvent.requestPermission();
-      if (perm !== 'granted') {
-        alert('需要方向权限才能使用AR功能');
-        loadingDiv.classList.add('hide');
-        startBtn.disabled = false;
-        isStarting = false;
-        return;
-      }
-    } catch(e) { 
-      console.error('方向权限错误:', e);
-      alert('请允许方向权限');
-      loadingDiv.classList.add('hide');
-      startBtn.disabled = false;
-      isStarting = false;
-      return; 
-    }
+      if (perm !== 'granted') { alert('需要方向权限'); loadingDiv.classList.add('hide'); isStarting=false; return; }
+    } catch(e) { alert('请允许方向权限'); loadingDiv.classList.add('hide'); isStarting=false; return; }
   }
   
-  // 监听方向
-  const onOrientation = (e) => {
+  window.addEventListener('deviceorientationabsolute', (e) => {
     if (!isARActive) return;
-    let alpha = e.alpha || 0;
-    currentHeading = currentHeading * 0.85 + alpha * 0.15;
+    currentHeading = currentHeading * 0.85 + (e.alpha || 0) * 0.15;
     updateRadar();
-  };
-  window.addEventListener('deviceorientationabsolute', onOrientation);
-  window.addEventListener('deviceorientation', onOrientation);
+  });
   
-  // 获取位置
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       currentLat = pos.coords.latitude;
@@ -629,72 +542,30 @@ async function startAR() {
       radarContainer.classList.remove('hide');
       debugDiv.innerText = `📍 ${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`;
       statusDiv.innerText = `📍 定位成功`;
-      console.log('定位成功:', currentLat, currentLng);
       await refresh();
       isStarting = false;
-      startBtn.disabled = false;
     },
-    (err) => { 
-      console.error('定位错误:', err);
-      alert('定位失败: ' + err.message + '，请检查GPS权限'); 
-      loadingDiv.classList.add('hide');
-      startBtn.classList.remove('hide');
-      startBtn.disabled = false;
-      isStarting = false;
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    (err) => { alert('定位失败: ' + err.message); loadingDiv.classList.add('hide'); isStarting=false; },
+    { enableHighAccuracy: true, timeout: 10000 }
   );
   
-  // 持续追踪位置
-  let watchId = navigator.geolocation.watchPosition(
-    (pos) => { 
-      if (isARActive) { 
-        currentLat = pos.coords.latitude; 
-        currentLng = pos.coords.longitude; 
-        updateRadar(); 
-      } 
-    },
+  navigator.geolocation.watchPosition(
+    (pos) => { if (isARActive) { currentLat = pos.coords.latitude; currentLng = pos.coords.longitude; updateRadar(); } },
     null,
-    { enableHighAccuracy: true, maximumAge: 5000 }
+    { enableHighAccuracy: true }
   );
-  
-  // 页面关闭时清理
-  window.addEventListener('beforeunload', () => {
-    if (watchId) navigator.geolocation.clearWatch(watchId);
-  });
 }
 
-// ========== 事件绑定（优化触摸响应）==========
 function bindEvents() {
-  // 启动按钮 - 同时绑定 click 和 touchstart 确保响应
-  const onStartClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    startAR();
-  };
-  startBtn.addEventListener('click', onStartClick);
-  startBtn.addEventListener('touchstart', onStartClick, { passive: false });
-  
-  // 菜单按钮
-  menuToggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    sideMenu.classList.toggle('open');
-  });
-  
-  // 搜索按钮
-  searchBtn.addEventListener('click', () => searchTencentLocation(null, null));
-  searchBtn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    searchTencentLocation(null, null);
-  });
-  
-  // 搜索输入
+  startBtn.addEventListener('click', (e) => { e.preventDefault(); startAR(); });
+  startBtn.addEventListener('touchend', (e) => { e.preventDefault(); startAR(); });
+  menuToggle.addEventListener('click', () => sideMenu.classList.toggle('open'));
+  searchBtn.addEventListener('click', () => searchByKeyword(null));
+  searchBtn.addEventListener('touchend', (e) => { e.preventDefault(); searchByKeyword(null); });
   searchInput.addEventListener('input', onSearchInput);
-  searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchTencentLocation(null, null); });
+  searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchByKeyword(null); });
   searchInput.addEventListener('focus', () => searchArea.classList.add('center-mode'));
   searchInput.addEventListener('blur', () => setTimeout(() => searchArea.classList.remove('center-mode'), 200));
-  
-  // 分类按钮
   document.querySelectorAll('.cat-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const type = btn.getAttribute('data-type');
@@ -702,23 +573,12 @@ function bindEvents() {
       sideMenu.classList.remove('open');
     });
   });
-  
-  // 点击其他地方关闭联想
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#search-area')) {
-      suggestList.style.display = 'none';
-    }
+    if (!e.target.closest('#search-area')) suggestList.style.display = 'none';
   });
 }
-
 bindEvents();
-
-// 定时更新雷达
-setInterval(() => { 
-  if (isARActive && currentLat && currentLng) {
-    updateRadar(); 
-  }
-}, 150);
+setInterval(() => { if (isARActive) updateRadar(); }, 150);
 </script>
 </body>
 </html>

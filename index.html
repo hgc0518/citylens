@@ -4,10 +4,8 @@
 <meta charset="UTF-8">
 <title>春哥专用的城市万花筒</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-
 <style>
 body { margin:0; overflow:hidden; font-family:"微软雅黑"; }
 #top-bar { position:fixed; top:0; width:100%; display:flex; justify-content:center; background:rgba(0,0,0,0.6); padding:6px; z-index:10; }
@@ -20,7 +18,6 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑"; }
 #startBtn { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:20; padding:12px 20px; background:#007aff; color:#fff; border:none; border-radius:10px; }
 </style>
 </head>
-
 <body>
 
 <button id="startBtn">点击开启AR</button>
@@ -34,8 +31,8 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑"; }
 </a-scene>
 
 <script>
-// ================= 配置 =================
-const WORKER_URL = 'https://gaode.903329354.workers.dev/'; // 你的 Worker 域名
+// 配置
+const WORKER_URL = 'https://gaode.903329354.workers.dev'; // 你的 Worker 域名
 const maxPOI = 15;
 const categories=[
   {name:"餐厅",keyword:"餐厅",icon:"https://cdn-icons-png.flaticon.com/512/3075/3075977.png"},
@@ -45,33 +42,43 @@ const categories=[
 
 let userLat,userLng,smoothHeading=0,allPOIs=[],currentCategory="餐厅";
 
-// ================= 启动按钮 =================
+// 启动按钮
 document.getElementById("startBtn").onclick=async ()=>{
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try{ await DeviceOrientationEvent.requestPermission(); }catch(e){console.log(e);}
+  console.log("点击AR按钮");
+  // iOS方向权限
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    try {
+      const result = await DeviceOrientationEvent.requestPermission();
+      if (result !== "granted") {
+        alert("方向权限未授予，AR无法显示");
+        return;
+      }
+    } catch(e) { alert("方向权限请求失败"); return; }
   }
-  startAR();
+
+  // 获取定位
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    fetchPOIs();
+  }, err => { alert("定位失败：" + err.message); });
+
+  // 持续定位
+  navigator.geolocation.watchPosition(pos=>{
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+  });
+
+  // 方向监听
+  window.addEventListener("deviceorientationabsolute", e => {
+    smoothHeading += 0.1*((e.alpha||0)-smoothHeading);
+    renderPOIs();
+  });
+
   document.getElementById("startBtn").style.display="none";
 };
 
-// ================= 启动 =================
-function startAR(){
-  navigator.geolocation.getCurrentPosition(pos=>{
-    userLat=pos.coords.latitude;
-    userLng=pos.coords.longitude;
-    fetchPOIs();
-  });
-  navigator.geolocation.watchPosition(pos=>{
-    userLat=pos.coords.latitude;
-    userLng=pos.coords.longitude;
-  });
-  window.addEventListener("deviceorientationabsolute",e=>{
-    smoothHeading+=0.1*((e.alpha||0)-smoothHeading);
-    renderPOIs();
-  });
-}
-
-// ================= 获取POI =================
+// 获取POI
 async function fetchPOIs(){
   if(!userLat) return;
   const url = `${WORKER_URL}?location=${userLng},${userLat}&keywords=${currentCategory}&radius=1000`;
@@ -83,7 +90,7 @@ async function fetchPOIs(){
   }catch(e){ console.log("请求失败",e); allPOIs=[] }
 }
 
-// ================= 工具 =================
+// 工具
 function toRad(d){return d*Math.PI/180;}
 function getDistance(a,b,c,d){
   const R=6371000;
@@ -98,7 +105,7 @@ function getBearing(a,b,c,d){
   return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 
-// ================= 雷达 =================
+// 雷达
 function updateRadar(){
   const radar=document.getElementById("radar");
   radar.innerHTML="";
@@ -113,7 +120,7 @@ function updateRadar(){
   });
 }
 
-// ================= 渲染 =================
+// 渲染
 function renderPOIs(){
   if(!userLat || allPOIs.length===0) return;
   const scene=document.querySelector("a-scene");
@@ -133,7 +140,7 @@ function renderPOIs(){
   });
 }
 
-// ================= 卡片 =================
+// 卡片
 function showCard(poi,dist,lng,lat){
   const card=document.getElementById("card");
   card.innerHTML=`
@@ -144,10 +151,10 @@ function showCard(poi,dist,lng,lat){
   card.style.display="block";
 }
 
-// ================= 导航 =================
+// 导航
 function goNav(lng,lat,name){ window.open(`https://uri.amap.com/navigation?to=${lng},${lat},${name}`); }
 
-// ================= 调试面板 =================
+// 调试面板
 setInterval(()=>{
   document.getElementById("debug").innerText =
     "定位: "+userLat+","+userLng+"\n"+

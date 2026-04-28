@@ -10,11 +10,29 @@
 * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
 body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 
+/* 顶部调试信息 - 上移 */
+#debug {
+  position:fixed;
+  top:5px;
+  left:5px;
+  background:rgba(0,0,0,0.75);
+  color:#0f0;
+  font-size:10px;
+  z-index:9999;
+  padding:6px 10px;
+  border-radius:8px;
+  font-family:monospace;
+  pointer-events:none;
+  backdrop-filter:blur(4px);
+  max-width:75%;
+  line-height:1.4;
+}
+
 /* 顶部菜单 - 可折叠 */
 #menu-toggle {
   position:fixed;
   top:12px;
-  left:12px;
+  right:12px;
   width:40px;
   height:40px;
   background:rgba(0,0,0,0.7);
@@ -36,7 +54,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   right:0;
   background:rgba(0,0,0,0.85);
   backdrop-filter:blur(10px);
-  padding:12px 12px 12px 55px;
+  padding:12px 12px 12px 16px;
   z-index:15;
   transform:translateY(-100%);
   transition:transform 0.3s ease;
@@ -72,7 +90,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 /* 卡片 */
 #card {
   position:fixed;
-  bottom:20px;
+  bottom:80px;
   left:50%;
   transform:translateX(-50%);
   background:rgba(0,0,0,0.92);
@@ -128,26 +146,52 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   box-shadow:0 0 5px #ff4444;
 }
 
-/* 调试信息 */
-#debug {
+/* 底部搜索栏 */
+#search-bar {
   position:fixed;
-  bottom:5px;
-  left:5px;
-  background:rgba(0,0,0,0.8);
-  color:#0f0;
-  font-size:10px;
-  z-index:9999;
-  padding:6px;
-  border-radius:6px;
-  font-family:monospace;
-  pointer-events:none;
-  max-width:70%;
+  bottom:15px;
+  left:15px;
+  right:15px;
+  background:rgba(0,0,0,0.85);
+  backdrop-filter:blur(10px);
+  border-radius:30px;
+  display:flex;
+  padding:5px;
+  z-index:20;
+  gap:8px;
+  border:1px solid rgba(255,255,255,0.2);
+}
+#search-input {
+  flex:1;
+  background:rgba(255,255,255,0.1);
+  border:none;
+  padding:10px 15px;
+  border-radius:30px;
+  color:#fff;
+  font-size:14px;
+  outline:none;
+}
+#search-input::placeholder {
+  color:rgba(255,255,255,0.5);
+}
+#search-btn {
+  background:#007aff;
+  border:none;
+  padding:8px 18px;
+  border-radius:30px;
+  color:#fff;
+  font-size:14px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+#search-btn:active {
+  transform:scale(0.96);
 }
 
-/* 开始按钮 - 优化版 */
+/* 开始按钮 */
 #startBtn {
   position:fixed;
-  bottom:30px;
+  bottom:80px;
   left:50%;
   transform:translateX(-50%);
   z-index:30;
@@ -162,11 +206,9 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   box-shadow:0 2px 12px rgba(0,0,0,0.3);
   transition:0.2s;
   white-space:nowrap;
-  -webkit-tap-highlight-color: transparent;
 }
 #startBtn:active {
   transform:translateX(-50%) scale(0.96);
-  opacity:0.9;
 }
 .hidden {
   display:none !important;
@@ -178,7 +220,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
   top:50%;
   left:50%;
   transform:translate(-50%,-50%);
-  background:rgba(0,0,0,0.8);
+  background:rgba(0,0,0,0.85);
   color:#fff;
   padding:12px 24px;
   border-radius:30px;
@@ -211,6 +253,10 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 </div>
 <div id="radar"></div>
 <div id="debug">🔴 未启动<br>点击下方按钮</div>
+<div id="search-bar">
+  <input type="text" id="search-input" placeholder="🔍 搜索地点，如：麦当劳、超市..." />
+  <button id="search-btn">搜索</button>
+</div>
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
   <a-camera gps-camera rotation-reader></a-camera>
@@ -218,7 +264,7 @@ body { margin:0; overflow:hidden; font-family:"微软雅黑",sans-serif; }
 
 <script>
 const WORKER_URL = 'https://gaode.903329354.workers.dev';
-const maxPOI = 25;
+const maxPOI = 30;
 
 // 分类配置
 const categories = [
@@ -240,6 +286,7 @@ let currentCategory = categories[0];
 let isARStarted = false;
 let locationWatchId = null;
 let isMenuOpen = false;
+let customKeyword = null; // 自定义搜索关键词
 
 // ========== 菜单折叠 ==========
 function toggleMenu() {
@@ -254,11 +301,9 @@ function toggleMenu() {
 
 // ========== 切换分类 ==========
 async function switchCategory(cat) {
-  if (!isARStarted) {
-    console.log("等待AR启动...");
-    return;
-  }
+  if (!isARStarted) return;
   currentCategory = cat;
+  customKeyword = null; // 清除自定义搜索
   
   document.querySelectorAll(".button").forEach((btn, idx) => {
     if (idx < categories.length && categories[idx].keyword === cat.keyword) {
@@ -271,14 +316,39 @@ async function switchCategory(cat) {
   document.getElementById("card").style.display = "none";
   await fetchPOIs();
   renderPOIs();
-  updateDebugMsg();
+}
+
+// ========== 自定义搜索 ==========
+async function customSearch() {
+  if (!isARStarted) {
+    alert("请先点击「开启AR导航」");
+    return;
+  }
+  const input = document.getElementById("search-input");
+  const keyword = input.value.trim();
+  if (!keyword) {
+    alert("请输入搜索内容");
+    return;
+  }
+  
+  customKeyword = keyword;
+  // 移除分类高亮
+  document.querySelectorAll(".button").forEach(btn => btn.classList.remove("active"));
+  await fetchPOIs();
+  renderPOIs();
 }
 
 // ========== 获取POI数据 ==========
 async function fetchPOIs() {
   if (!userLat || !userLng || !isARStarted) return;
   
-  let keyword = currentCategory.keyword;
+  let keyword;
+  if (customKeyword) {
+    keyword = customKeyword;
+  } else {
+    keyword = currentCategory.keyword;
+  }
+  
   const url = `${WORKER_URL}?location=${userLng},${userLat}&keywords=${encodeURIComponent(keyword)}&radius=2000&offset=${maxPOI}`;
   
   console.log("请求:", url);
@@ -291,9 +361,10 @@ async function fetchPOIs() {
     
     if (data.status === "1" && data.pois && data.pois.length > 0) {
       allPOIs = data.pois.slice(0, maxPOI);
-      updateDebugMsg(`✅ ${allPOIs.length}个${currentCategory.name}`);
+      const searchType = customKeyword ? `"${customKeyword}"` : currentCategory.name;
+      updateDebugMsg(`✅ ${allPOIs.length}个${searchType}`);
     } else {
-      updateDebugMsg(`⚠️ 附近无${currentCategory.name}`);
+      updateDebugMsg(`⚠️ 无结果`);
       allPOIs = [];
     }
   } catch (e) {
@@ -360,6 +431,14 @@ function renderPOIs() {
   
   updateRadar();
   
+  // 决定用的图标
+  let iconUrl;
+  if (customKeyword) {
+    iconUrl = "https://cdn-icons-png.flaticon.com/512/684/684908.png"; // 搜索图标
+  } else {
+    iconUrl = currentCategory.icon;
+  }
+  
   allPOIs.forEach(poi => {
     if (!poi.location) return;
     const [lng, lat] = poi.location.split(",").map(Number);
@@ -372,7 +451,7 @@ function renderPOIs() {
     entity.setAttribute("scale", "1 1 1");
     
     const img = document.createElement("a-image");
-    img.setAttribute("src", currentCategory.icon);
+    img.setAttribute("src", iconUrl);
     img.setAttribute("scale", "1 1 1");
     
     const text = document.createElement("a-text");
@@ -390,7 +469,8 @@ function renderPOIs() {
     scene.appendChild(entity);
   });
   
-  updateDebugMsg(`${allPOIs.length}个${currentCategory.name} | ${Math.round(smoothHeading)}°`);
+  const searchType = customKeyword ? `"${customKeyword}"` : currentCategory.name;
+  updateDebugMsg(`${allPOIs.length}个${searchType} | ${Math.round(smoothHeading)}°`);
 }
 
 function showCard(poi, dist, lng, lat) {
@@ -410,12 +490,13 @@ function goNav(lng, lat, name) {
 }
 
 function updateDebugMsg(extra = "") {
-  const msg = `📍 ${userLat?.toFixed(4) || "?"}, ${userLng?.toFixed(4) || "?"}\n🎯 ${currentCategory.name} | ${allPOIs?.length || 0}个\n🧭 ${Math.round(smoothHeading)}°\n${extra}`;
+  const searchInfo = customKeyword ? `🔍 ${customKeyword}` : `📁 ${currentCategory.name}`;
+  const msg = `📍 ${userLat?.toFixed(4) || "?"}, ${userLng?.toFixed(4) || "?"}\n${searchInfo} | ${allPOIs?.length || 0}个 | 🧭 ${Math.round(smoothHeading)}°\n${extra}`;
   const debugEl = document.getElementById("debug");
   if (debugEl) debugEl.innerText = msg;
 }
 
-// ========== 启动AR（优化版） ==========
+// ========== 启动AR ==========
 let isStarting = false;
 
 async function startAR() {
@@ -465,11 +546,10 @@ async function startAR() {
         userLng = pos.coords.longitude;
         isARStarted = true;
         
-        // 隐藏按钮和加载
         startBtn.classList.add("hidden");
         loading.style.display = "none";
         
-        updateDebugMsg("定位成功，加载中...");
+        updateDebugMsg("定位成功");
         await fetchPOIs();
         renderPOIs();
         
@@ -489,7 +569,6 @@ async function startAR() {
       { enableHighAccuracy: true, timeout: 8000 }
     );
     
-    // 持续监听位置
     locationWatchId = navigator.geolocation.watchPosition(
       (pos) => {
         if (isARStarted) {
@@ -522,9 +601,13 @@ function bindEvents() {
     };
   });
   
+  document.getElementById("search-btn").onclick = customSearch;
+  document.getElementById("search-input").onkeypress = (e) => {
+    if (e.key === "Enter") customSearch();
+  };
+  
   const startBtn = document.getElementById("startBtn");
   startBtn.onclick = startAR;
-  // 移除 touchend 重复绑定，避免多次触发
   startBtn.ontouchend = (e) => {
     e.preventDefault();
     startAR();
@@ -533,11 +616,8 @@ function bindEvents() {
 
 // ========== 初始化 ==========
 bindEvents();
-
-// 初始菜单闭合
 document.getElementById("top-bar").classList.remove("open");
 
-// 每秒更新调试
 setInterval(() => {
   if (!isARStarted) {
     document.getElementById("debug").innerHTML = "🔴 未启动\n点击下方按钮";
